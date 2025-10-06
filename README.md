@@ -2,24 +2,24 @@
 
 A powerful Rust-based CLI tool that automatically converts Chrome Manifest V3 extensions to Firefox-compatible format. Handles API conversions, manifest transformations, and generates compatibility shims with support for complex patterns like `executeScript` to message-passing conversion.
 
-## ✨ Features
+## Features
 
-- **🔄 Automatic API Conversion**: Converts `chrome.*` namespace to `browser.*`
-- **📝 Manifest Transformation**: Adapts Chrome MV3 manifests for Firefox compatibility
-- **⚙️ Service Worker Handling**: Converts service workers to Firefox event pages
-- **🔧 Advanced Transformations**: Automatically converts `executeScript` patterns to message-passing
-- **🎯 Smart Analysis**: Detects 78+ types of incompatibilities
-- **📦 XPI Packaging**: Creates ready-to-install Firefox extension packages
-- **📊 Detailed Reports**: Comprehensive conversion reports with statistics
-- **🚀 Batch Processing**: Handles multiple files efficiently
+- **Automatic API Conversion**: Converts `chrome.*` namespace to `browser.*`
+- **Manifest Transformation**: Adapts Chrome MV3 manifests for Firefox compatibility
+- **Service Worker Handling**: Converts service workers to Firefox event pages
+- **Advanced Transformations**: Automatically converts `executeScript` patterns to message-passing
+- **Smart Analysis**: Detects 78+ types of incompatibilities
+- **XPI Packaging**: Creates ready-to-install Firefox extension packages
+- **Detailed Reports**: Comprehensive conversion reports with statistics
+- **Batch Processing**: Handles multiple files efficiently
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/chrome-to-firefox.git
+git clone https://github.com/OtsoBear/chrome-to-firefox.git
 cd chrome-to-firefox
 
 # Build the project
@@ -46,13 +46,13 @@ cat output.md
 cargo run -- convert -i ./LatexToCalc -o ./converted-output --report
 
 # Expected output:
-# ✅ Conversion completed successfully!
-# 📊 Files modified: 5
-# 📊 Files added: 3 (compatibility shims)
-# 📊 Total changes: 73
+# Conversion completed successfully!
+# Files modified: 5
+# Files added: 3 (compatibility shims)
+# Total changes: 73
 ```
 
-## 📋 What Gets Converted
+## What Gets Converted
 
 ### JavaScript Transformations
 
@@ -138,7 +138,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 }
 ```
 
-## 📖 Usage
+## Usage
 
 ### Command Reference
 
@@ -203,7 +203,7 @@ The report includes:
   - ✓ Added browser polyfill
 ```
 
-## 🧪 Testing in Firefox
+## Testing in Firefox
 
 ### Method 1: Temporary Add-on
 1. Open Firefox
@@ -220,7 +220,7 @@ The report includes:
 ### Debugging
 Check the Browser Console (Ctrl+Shift+J) for any errors.
 
-## 🎯 Key Transformations
+## Key Transformations
 
 ### 1. Chrome API → Browser API
 - All `chrome.*` calls converted to `browser.*`
@@ -263,7 +263,7 @@ Chrome uses service workers, Firefox uses event pages:
 ### Host Permissions
 Firefox treats `host_permissions` as optional (user can deny), while Chrome grants them at install time.
 
-## 🛠️ Development
+## Development
 
 ### Building
 
@@ -312,25 +312,25 @@ cargo run -- convert -i ./LatexToCalc -o ./output --report
 ./target/release/chrome-to-firefox convert -i ./extension -o ./output
 ```
 
-## 📚 Documentation
+## Documentation
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and implementation details
 - **Conversion Reports** - Generated with `--report` flag
 - **In-code Documentation** - Run `cargo doc --open`
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Areas for contribution:
 
-- 🔧 Additional API mappings
-- 🧪 More test cases
-- 📚 Documentation improvements
-- 🐛 Bug fixes
-- ✨ New features
+- Additional API mappings
+- More test cases
+- Documentation improvements
+- Bug fixes
+- New features
 
 See the LatexToCalc extension as a reference for testing.
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Build Errors
 ```bash
@@ -350,26 +350,26 @@ cargo build --release
 3. Review manifest in `about:debugging`
 4. Check permissions are granted
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-- Built with Rust 🦀
+- Built with Rust
 - Test extension: [LatexToCalc](LatexToCalc/)
 - Inspired by the need for cross-browser extension compatibility
 
-## 📞 Support
+## Support
 
-- 🐛 [Report a bug](https://github.com/yourusername/chrome-to-firefox/issues)
-- 💡 [Request a feature](https://github.com/yourusername/chrome-to-firefox/issues)
-- 📖 [Read the architecture docs](./ARCHITECTURE.md)
+- [Report a bug](https://github.com/OtsoBear/chrome-to-firefox/issues)
+- [Request a feature](https://github.com/OtsoBear/chrome-to-firefox/issues)
+- [Read the architecture docs](./ARCHITECTURE.md)
 
 ---
 
-**Status**: ✅ Production-ready  
+**Status**: Production-ready  
 **Version**: 0.1.0  
 **Last Updated**: October 2025
 
-Made with ❤️ for the open web
+Made with care for the open web
