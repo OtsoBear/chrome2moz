@@ -287,19 +287,26 @@ Remove Firefox-incompatible properties:
 
 ## Compatibility Shims
 
-### browser-polyfill.js
+The converter automatically generates shims based on detected API usage. Shims are conditionally included only when needed.
+
+### Core Shims
+
+#### browser-polyfill.js
+Basic namespace compatibility between Chrome and Firefox.
 ```javascript
 if (typeof browser === 'undefined') {
   window.browser = window.chrome;
 }
 ```
 
-### action-compat.js
+#### action-compat.js
+Provides compatibility between MV2 `browser_action` and MV3 `action` APIs.
 ```javascript
 const browserAction = chrome.action || chrome.browserAction;
 ```
 
-### promise-wrapper.js
+#### promise-wrapper.js
+Converts callback-based Chrome APIs to promise-based for Firefox.
 ```javascript
 function promisify(fn) {
   return function(...args) {
@@ -315,6 +322,118 @@ function promisify(fn) {
   };
 }
 ```
+
+### MV3 API Shims
+
+#### storage-session-compat.js
+**Purpose**: Provides in-memory fallback for `chrome.storage.session` (Chrome 102+)
+**Status**: Fully functional with in-memory Map()
+**Limitations**: Data lost on extension restart (as expected for session storage)
+
+Maps:
+- `storage.session.get()` → In-memory Map
+- `storage.session.set()` → In-memory Map
+- `storage.session.remove()` → In-memory Map
+- `storage.session.clear()` → In-memory Map
+
+#### sidepanel-compat.js
+**Purpose**: Maps Chrome's sidePanel API to Firefox's sidebarAction
+**Status**: Partial compatibility
+**Limitations**:
+- `onOpened` event cannot be emulated
+- Cannot programmatically close sidebar
+- Different UI placement
+
+Maps:
+- `sidePanel.setOptions()` → `sidebarAction.setPanel()`
+- `sidePanel.open()` → `sidebarAction.open()`
+- `sidePanel.getOptions()` → `sidebarAction.getPanel()` (limited)
+
+#### declarative-net-request-stub.js
+**Purpose**: Stubs declarativeNetRequest API with warnings
+**Status**: Not functional - guidance only
+**Recommendation**: Use `webRequest` API for Firefox
+
+Provides:
+- Error messages for all DNR methods
+- Migration guidance to webRequest API
+- Prevents runtime errors
+
+#### user-scripts-compat.js
+**Purpose**: Translates Chrome's userScripts API to Firefox equivalent
+**Status**: Functional with Firefox 102+
+**Limitations**: Different API structure
+
+Maps:
+- `userScripts.register()` → `browser.userScripts.register()` or `contentScripts.register()`
+- Other methods stubbed with warnings
+
+### Legacy API Shims
+
+#### tabs-windows-compat.js
+**Purpose**: Maps deprecated Chrome APIs to modern equivalents
+**Status**: Fully functional
+
+Maps:
+- `tabs.getSelected()` → `tabs.query({active: true, currentWindow: true})`
+- `tabs.getAllInWindow()` → `tabs.query({windowId: ...})`
+- `windows.create({focused})` → Adapts to Firefox's state parameter
+
+#### runtime-compat.js
+**Purpose**: Stubs Chrome-specific runtime methods
+**Status**: Stub with guidance
+
+Provides:
+- `runtime.getPackageDirectoryEntry` → Stub with suggestion to use `runtime.getURL()`
+
+### Optional Shims
+
+#### downloads-compat.js
+**Purpose**: Handles Chrome-specific downloads features
+**Status**: Partial - removes unsupported options
+
+Stubs:
+- `downloads.acceptDanger` → Error with explanation
+- `downloads.setShelfEnabled` → No-op with warning
+- Filters `conflictAction` from download options
+
+#### privacy-stub.js
+**Purpose**: Stubs chrome.privacy API
+**Status**: Not functional - returns read-only values
+**Recommendation**: Use Firefox's about:preferences
+
+Provides stub implementations for:
+- `privacy.network.*` → Returns not_controllable
+- `privacy.services.*` → Returns not_controllable
+- `privacy.websites.*` → Returns not_controllable
+
+#### notifications-compat.js
+**Purpose**: Adapts Chrome notification options to Firefox capabilities
+**Status**: Functional with limitations
+
+Adapts:
+- Removes `buttons` (not supported)
+- Keeps but warns about `imageUrl` (limited support)
+- Removes `appIconMaskUrl` (maps to iconUrl)
+- Removes `progress` indicator
+- Removes `silent` option
+
+### Shim Selection Logic
+
+Shims are automatically included based on code analysis:
+
+1. **Browser Polyfill**: If any `chrome.*` API usage detected
+2. **Promise Wrapper**: If callback-style API calls detected
+3. **Action Compat**: If `action` or `browser_action` in manifest
+4. **Storage Session**: If `storage.session` used in code
+5. **SidePanel**: If `sidePanel` API used in code
+6. **DNR Stub**: If `declarativeNetRequest` used in code
+7. **UserScripts**: If `userScripts` API used in code
+8. **Legacy Tabs/Windows**: If deprecated APIs detected
+9. **Runtime Stubs**: If Chrome-specific runtime methods used
+10. **Downloads**: If Chrome-specific download methods used
+11. **Privacy**: If `chrome.privacy` used in code
+12. **Notifications**: If extended notification features used
 
 ## Known Issues & Limitations
 
@@ -496,12 +615,23 @@ dialoguer = "0.11"
 | API | Chrome | Firefox | Conversion |
 |-----|--------|---------|------------|
 | storage.* | ✅ | ✅ | chrome → browser |
+| storage.session | ✅ | ❌ | In-memory polyfill |
 | tabs.* | ✅ | ✅ | chrome → browser |
+| tabs.getSelected | ⚠️ Deprecated | ❌ | Map to tabs.query |
+| tabs.getAllInWindow | ⚠️ Deprecated | ❌ | Map to tabs.query |
+| windows.create | ✅ | ⚠️ | Adapt focused parameter |
 | runtime.* | ✅ | ✅ | chrome → browser |
+| runtime.getPackageDirectoryEntry | ✅ | ❌ | Stub with warning |
 | scripting.* | ✅ | ✅ | chrome → browser + message passing |
 | action.* | ✅ | ✅ | chrome → browser |
 | offscreen.* | ✅ | ❌ | Flag as blocker |
-| sidePanel.* | ✅ | ❌ | Flag as blocker |
+| sidePanel.* | ✅ | ❌ | Map to sidebarAction |
+| declarativeNetRequest.* | ✅ | ⚠️ Limited | Stub with warnings |
+| userScripts.* | ✅ | ⚠️ Different | Map to Firefox API |
+| downloads.acceptDanger | ✅ | ❌ | Stub with warning |
+| downloads.setShelfEnabled | ✅ | ❌ | Stub with warning |
+| privacy.* | ✅ | ❌ | Stub with warnings |
+| notifications (extended) | ✅ | ⚠️ Limited | Adapt options |
 | webRequest.* | Limited | ✅ | Keep blocking in Firefox |
 
 ## Version Requirements
