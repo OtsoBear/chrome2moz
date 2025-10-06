@@ -1,6 +1,7 @@
 //! Chrome to Firefox Extension Converter CLI
 
 use chrome_to_firefox::{convert_extension, ConversionOptions, CalculatorType};
+use chrome_to_firefox::scripts::fetch_chrome_only_apis;
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::PathBuf;
@@ -45,6 +46,9 @@ enum Commands {
         #[arg(short, long)]
         input: PathBuf,
     },
+
+    /// List WebExtension APIs supported in Chrome but not Firefox
+    ChromeOnlyApis,
 }
 
 fn main() {
@@ -170,6 +174,23 @@ fn main() {
                     eprintln!("{}", format!("Error: {}", e).red());
                     std::process::exit(1);
                 }
+            }
+        }
+
+        Commands::ChromeOnlyApis => {
+            println!(
+                "{}",
+                "Fetching Chrome-only WebExtension APIs".bold().blue()
+            );
+            println!();
+
+            let runtime = tokio::runtime::Runtime::new()
+                .expect("failed to initialize async runtime");
+
+            if let Err(err) = runtime.block_on(fetch_chrome_only_apis::run()) {
+                eprintln!("{}", "❌ Failed to fetch API list".red().bold());
+                eprintln!("{}", format!("Error: {err}").red());
+                std::process::exit(1);
             }
         }
     }
