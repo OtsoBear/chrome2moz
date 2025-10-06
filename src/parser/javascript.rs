@@ -5,6 +5,31 @@ use regex::Regex;
 use lazy_static::lazy_static;
 use anyhow::Result;
 
+pub const CHROME_ONLY_APIS: &[&str] = &[
+    // Completely unsupported in Firefox
+    "chrome.offscreen",
+    "chrome.declarativeContent",
+    "chrome.tabGroups",
+    "chrome.sidePanel",
+    "chrome.action.openPopup",
+
+    // Limited or different implementation in Firefox
+    "chrome.declarativeNetRequest",
+    "chrome.userScripts",
+    "chrome.storage.session",
+
+    // Chrome-specific runtime methods
+    "chrome.runtime.getPackageDirectoryEntry",
+
+    // Legacy deprecated APIs (Chrome only)
+    "chrome.tabs.getSelected",
+    "chrome.tabs.getAllInWindow",
+
+    // Chrome-specific downloads features
+    "chrome.downloads.acceptDanger",
+    "chrome.downloads.setShelfEnabled",
+];
+
 lazy_static! {
     // Regex to match chrome.* API calls
     static ref CHROME_API_PATTERN: Regex = Regex::new(
@@ -66,32 +91,6 @@ pub fn analyze_javascript(source: &str) -> Result<Vec<ChromeApiCall>> {
 }
 
 fn is_chrome_only_api(api_name: &str) -> bool {
-    // List of Chrome-only APIs that don't exist or have limited support in Firefox
-    const CHROME_ONLY_APIS: &[&str] = &[
-        // Completely unsupported in Firefox
-        "chrome.offscreen",
-        "chrome.declarativeContent",
-        "chrome.tabGroups",
-        "chrome.sidePanel",
-        "chrome.action.openPopup",
-        
-        // Limited or different implementation in Firefox
-        "chrome.declarativeNetRequest",
-        "chrome.userScripts",
-        "chrome.storage.session",
-        
-        // Chrome-specific runtime methods
-        "chrome.runtime.getPackageDirectoryEntry",
-        
-        // Legacy deprecated APIs (Chrome only)
-        "chrome.tabs.getSelected",
-        "chrome.tabs.getAllInWindow",
-        
-        // Chrome-specific downloads features
-        "chrome.downloads.acceptDanger",
-        "chrome.downloads.setShelfEnabled",
-    ];
-    
     CHROME_ONLY_APIS.iter().any(|&chrome_api| api_name.starts_with(chrome_api))
 }
 

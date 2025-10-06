@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -5,6 +6,8 @@ use futures::{stream, StreamExt};
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{Map, Value};
+
+use crate::parser::javascript::CHROME_ONLY_APIS;
 
 const REPO_OWNER: &str = "mdn";
 const REPO_NAME: &str = "browser-compat-data";
@@ -57,14 +60,57 @@ pub async fn run() -> Result<()> {
     let mut sorted_results = results;
     sorted_results.sort_by(|a, b| a.feature_path.to_lowercase().cmp(&b.feature_path.to_lowercase()));
 
+    let mut implemented_count = 0usize;
+    let mut not_implemented_count = 0usize;
+    let mut matched_prefixes: HashSet<&str> = HashSet::new();
+
     for entry in &sorted_results {
-        println!("- {}", entry.feature_path);
+        let chrome_path = format!("chrome.{}", entry.feature_path);
+        let status = if let Some(prefix) = matches_known_chrome_only(&chrome_path) {
+            matched_prefixes.insert(prefix);
+            implemented_count += 1;
+            "[implemented]"
+        } else {
+            not_implemented_count += 1;
+            "[not implemented]"
+        };
+
+        println!("- {} {}", entry.feature_path, status);
         println!("    Source: {}", entry.source_file);
         println!("    Chrome: {}", format_version(&entry.chrome_info));
         println!("    Firefox: {}\n", format_version(&entry.firefox_info));
     }
 
-    println!("\nTotal: {} Chrome-only APIs found", sorted_results.len());
+    println!("Summary:");
+    println!("  Total Chrome-only APIs found: {}", sorted_results.len());
+    println!("  Implemented (matches parser/javascript.rs): {}", implemented_count);
+    println!("  Not yet implemented: {}", not_implemented_count);
+
+    let missing_prefixes: Vec<&str> = CHROME_ONLY_APIS
+        .iter()
+        .copied()
+        .filter(|prefix| !matched_prefixes.contains(prefix))
+        .collect();
+
+    println!(
+        "  Known chrome-only prefixes tracked: {}",
+        CHROME_ONLY_APIS.len()
+    );
+    println!(
+        "  Known prefixes missing from MDN dataset: {}",
+        missing_prefixes.len()
+    );
+
+    if !missing_prefixes.is_empty() {
+        println!("    Missing prefixes:");
+        for prefix in missing_prefixes {
+            println!("      - {}", prefix);
+        }
+    }
+
+    println!("");
+    println!("Use this summary to prioritize new compatibility shims.");
+
     Ok(())
 }
 
@@ -233,6 +279,13 @@ fn handle_support_entry(
     }
 }
 
+fn matches_known_chrome_only(chrome_path: &str) -> Option<&'static str> {
+    CHROME_ONLY_APIS
+        .iter()
+        .copied()
+        .find(|prefix| chrome_path.starts_with(prefix))
+}
+
 fn is_supported(entry: &Value) -> bool {
     match entry {
         Value::Null => false,
@@ -328,5 +381,19 @@ mod tests {
             format_version(&json!([{ "version_added": "1" }, null])),
             "1; not supported"
         );
+    }
+
+    #[test]
+    fn matches_known_prefixes() {
+        assert!(matches_known_chrome_only("chrome.offscreen.createDocument").is_some());
+        assert!(matches_known_chrome_only("chrome.action.openPopup").is_some());
+        assert!(matches_known_chrome_only("chrome.tabs.getSelected").is_some());
+        assert!(matches_known_chrome_only("chrome.runtime.getPackageDirectoryEntry").is_some());
+    }
+
+    #[test]
+    fn detects_unknown_prefixes() {
+        assert!(matches_known_chrome_only("chrome.tabs.query").is_none());
+        assert!(matches_known_chrome_only("chrome.cookies.getAll").is_none());
     }
 }
