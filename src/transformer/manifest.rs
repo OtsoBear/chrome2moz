@@ -49,8 +49,10 @@ impl ManifestTransformer {
         if manifest.browser_specific_settings.is_none() {
             let extension_id = self.get_decision_value("extension_id")
                 .unwrap_or_else(|| {
-                    format!("{}@converted.extension", 
-                        manifest.name.to_lowercase().replace(' ', "-"))
+                    // Generate Firefox-compliant email-style ID
+                    // Pattern: [a-zA-Z0-9-._]*@[a-zA-Z0-9-._]+
+                    let sanitized_name = Self::sanitize_extension_name(&manifest.name);
+                    format!("{}@converted-extension.org", sanitized_name)
                 });
             
             manifest.browser_specific_settings = Some(BrowserSpecificSettings {
@@ -61,6 +63,27 @@ impl ManifestTransformer {
                 }),
             });
         }
+    }
+    
+    /// Sanitize extension name to be valid in Firefox email-style IDs
+    /// Only allows: a-z, A-Z, 0-9, hyphen, dot, underscore
+    fn sanitize_extension_name(name: &str) -> String {
+        name.chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '.' || c == '_' {
+                    c.to_lowercase().to_string()
+                } else if c.is_whitespace() {
+                    "-".to_string()
+                } else {
+                    // Remove other special characters
+                    String::new()
+                }
+            })
+            .collect::<String>()
+            .trim_matches('-') // Remove leading/trailing hyphens
+            .trim_matches('.') // Remove leading/trailing dots
+            .trim_matches('_') // Remove leading/trailing underscores
+            .to_string()
     }
     
     fn transform_background(&self, manifest: &mut Manifest) {
