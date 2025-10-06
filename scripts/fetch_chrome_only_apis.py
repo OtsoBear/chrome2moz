@@ -158,13 +158,13 @@ async def process_api_files(session: aiohttp.ClientSession, api_files: List[str]
     processed = 0
     
     for item in file_data:
-        # Handle exceptions from gather
-        if isinstance(item, Exception):
+        # Handle exceptions from gather - skip if not a tuple
+        if not isinstance(item, tuple):
             print(f"Skipping file due to error: {item}", file=sys.stderr)
             continue
         
-        # Type guard: item is Tuple[str, Dict[str, Any]] at this point
-        filename, data = item  # type: Tuple[str, Dict[str, Any]]
+        # Type narrowing: item is a tuple at this point
+        filename, data = item
         processed += 1
         
         if processed % 10 == 0:
