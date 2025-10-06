@@ -5,10 +5,14 @@ A powerful Rust-based CLI tool that automatically converts Chrome Manifest V3 ex
 ## Features
 
 - **Automatic API Conversion**: Converts `chrome.*` namespace to `browser.*`
+- **Expanded API Coverage**: 80+ Chrome API mappings including MV3 features
 - **Manifest Transformation**: Adapts Chrome MV3 manifests for Firefox compatibility
 - **Service Worker Handling**: Converts service workers to Firefox event pages
 - **Advanced Transformations**: Automatically converts `executeScript` patterns to message-passing
-- **Smart Analysis**: Detects 78+ types of incompatibilities
+- **Smart Analysis**: Detects 90+ types of incompatibilities
+- **Intelligent Shims**: Auto-generates 10+ compatibility shims based on API usage
+- **MV3 API Support**: Handles `storage.session`, `sidePanel`, `userScripts`, and more
+- **Legacy API Support**: Maps deprecated Chrome APIs to modern equivalents
 - **XPI Packaging**: Creates ready-to-install Firefox extension packages
 - **Detailed Reports**: Comprehensive conversion reports with statistics
 - **Batch Processing**: Handles multiple files efficiently
@@ -156,6 +160,7 @@ Output shows:
 - Manual action items
 
 #### Convert Command
+
 Convert an extension to Firefox format:
 
 ```bash
@@ -166,6 +171,18 @@ Options:
   -o, --output <PATH>    Output directory for Firefox version
   -r, --report           Generate detailed conversion report
 ```
+
+#### Chrome-Only APIs Command
+
+List WebExtension APIs that currently exist only in Chrome:
+
+```bash
+cargo run -- chrome-only-apis
+```
+
+This command reaches out to MDN's `browser-compat-data` repository using the GitHub
+API (no clone required) and reports every feature where Chrome has support but Firefox
+does not. Use it to quickly identify compatibility gaps before starting a port.
 
 ### Output Structure
 
@@ -238,21 +255,50 @@ Check the Browser Console (Ctrl+Shift+J) for any errors.
 - Creates listeners in content scripts
 
 ### 4. Compatibility Shims
-Generated shims provide cross-browser support:
+Generated shims provide extensive cross-browser support:
+
+**Core Shims:**
 - `browser-polyfill.js`: Namespace compatibility
 - `action-compat.js`: Action API bridging
 - `promise-wrapper.js`: Callback-to-promise helpers
 
+**MV3 API Shims:**
+- `storage-session-compat.js`: In-memory fallback for `storage.session`
+- `sidepanel-compat.js`: Maps `sidePanel` to Firefox's `sidebarAction`
+- `declarative-net-request-stub.js`: Stubs DNR with migration guidance
+- `user-scripts-compat.js`: Translates `userScripts` API
+
+**Legacy API Shims:**
+- `tabs-windows-compat.js`: Maps deprecated `tabs.getSelected`, `tabs.getAllInWindow`
+- `runtime-compat.js`: Stubs `runtime.getPackageDirectoryEntry`
+
+**Optional Shims:**
+- `downloads-compat.js`: Handles Chrome-specific download features
+- `privacy-stub.js`: Stubs `chrome.privacy` API
+- `notifications-compat.js`: Adapts notification options for Firefox
+
 ## ⚠️ Known Limitations
 
 ### Chrome-Only APIs
-Some Chrome features have no Firefox equivalent:
-- `chrome.offscreen.*` - Not available
-- `chrome.sidePanel.*` - Not available
-- `chrome.declarativeContent.*` - Not available
-- `chrome.tabGroups.*` - Not available
+Some Chrome features have no or limited Firefox equivalent:
 
-The tool flags these in the report as requiring manual intervention.
+**Not Available (Blockers):**
+- `chrome.offscreen.*` - No equivalent
+- `chrome.declarativeContent.*` - No equivalent
+- `chrome.tabGroups.*` - No equivalent
+
+**Partial Support (Shims Provided):**
+- `chrome.sidePanel.*` - Maps to Firefox's `sidebarAction` (different UI)
+- `chrome.declarativeNetRequest.*` - Stubbed with warnings (use `webRequest` instead)
+- `chrome.userScripts.*` - Maps to Firefox's different API structure
+- `chrome.storage.session` - In-memory polyfill (data not persisted)
+- `chrome.privacy.*` - Stubbed as read-only (use Firefox preferences)
+
+**Legacy APIs (Shims Provided):**
+- `tabs.getSelected` / `tabs.getAllInWindow` - Mapped to modern `tabs.query`
+- `runtime.getPackageDirectoryEntry` - Stubbed with guidance
+
+The tool automatically applies shims where possible and flags blockers in the report.
 
 ### Service Workers vs Event Pages
 Chrome uses service workers, Firefox uses event pages:
