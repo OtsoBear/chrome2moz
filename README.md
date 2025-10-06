@@ -182,7 +182,23 @@ cargo run -- chrome-only-apis
 
 This command reaches out to MDN's `browser-compat-data` repository using the GitHub
 API (no clone required) and reports every feature where Chrome has support but Firefox
-does not. Use it to quickly identify compatibility gaps before starting a port.
+does not. Use it to quickly identify compatibility gaps before starting a port. The
+report now highlights how many of the detected APIs already have shims or detection
+logic in `src/parser/javascript.rs`, so you can spot remaining work at a glance.
+
+Example summary section:
+
+```text
+Summary:
+  Total Chrome-only APIs found: 42
+  Implemented (matches parser/javascript.rs): 6
+  Not yet implemented: 36
+  Known chrome-only prefixes tracked: 14
+  Known prefixes missing from MDN dataset: 2
+    Missing prefixes:
+      - chrome.downloads.acceptDanger
+      - chrome.downloads.setShelfEnabled
+```
 
 ### Output Structure
 
