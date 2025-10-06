@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Chrome-to-Firefox Contributors"]
 description = "Convert Chrome MV3 extensions to Firefox-compatible MV3"
 license = "MIT"
-repository = "https://github.com/yourusername/chrome-to-firefox"
+repository = "https://github.com/OtsoBear/chrome-to-firefox"
 
 [[bin]]
 name = "chrome-to-firefox"
