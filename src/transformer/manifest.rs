@@ -238,5 +238,35 @@ mod tests {
         assert!(manifest.browser_specific_settings.is_some());
         let gecko = manifest.browser_specific_settings.unwrap().gecko.unwrap();
         assert!(gecko.id.contains("test-extension"));
+        assert!(gecko.id.contains("@converted-extension.org"));
+        // Verify it matches Firefox's email-style pattern
+        assert!(gecko.id.ends_with("@converted-extension.org"));
+    }
+    
+    #[test]
+    fn test_sanitize_extension_name() {
+        // Test simple case
+        assert_eq!(
+            ManifestTransformer::sanitize_extension_name("My Extension"),
+            "my-extension"
+        );
+        
+        // Test with special characters
+        assert_eq!(
+            ManifestTransformer::sanitize_extension_name("My@Extension#2024!"),
+            "myextension2024"
+        );
+        
+        // Test with dots and underscores
+        assert_eq!(
+            ManifestTransformer::sanitize_extension_name("my.extension_v2"),
+            "my.extension_v2"
+        );
+        
+        // Test with leading/trailing invalid chars
+        assert_eq!(
+            ManifestTransformer::sanitize_extension_name("-test-"),
+            "test"
+        );
     }
 }
