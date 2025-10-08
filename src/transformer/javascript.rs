@@ -21,6 +21,11 @@ lazy_static! {
     static ref EXECUTE_SCRIPT_PATTERN: Regex = Regex::new(
         r"(?:chrome|browser)\.scripting\.executeScript\s*\("
     ).unwrap();
+    
+    // Pattern to detect chrome:// URLs
+    static ref CHROME_URL_PATTERN: Regex = Regex::new(
+        r#"['"]chrome://([a-zA-Z0-9\-_]+)/?([^'"]*?)['"]"#
+    ).unwrap();
 }
 
 /// Structure to hold extracted executeScript information
@@ -102,6 +107,11 @@ impl JavaScriptTransformer {
         let (transformed, error_changes) = self.convert_last_error_checks(&new_content);
         new_content = transformed;
         changes.extend(error_changes);
+        
+        // 8. Replace Chrome settings URLs with Firefox equivalents
+        let (transformed, url_changes) = self.replace_chrome_urls(&new_content);
+        new_content = transformed;
+        changes.extend(url_changes);
         
         Ok(ModifiedFile {
             path: path.clone(),
@@ -222,6 +232,55 @@ if (typeof browser === 'undefined') {
         
         // Replace chrome.runtime.lastError with browser.runtime.lastError
         result = CHROME_RUNTIME_LASTERROR.replace_all(&result, "browser.runtime.lastError").to_string();
+        
+        (result, changes)
+    }
+    
+    /// Replace Chrome settings URLs with Firefox equivalents
+    fn replace_chrome_urls(&self, content: &str) -> (String, Vec<FileChange>) {
+        let mut changes = Vec::new();
+        let mut result = content.to_string();
+        
+        // Mapping of Chrome URLs to Firefox URLs
+        let url_mappings = vec![
+            ("extensions", "about:addons"),
+            ("settings", "about:preferences"),
+            ("history", "about:history"),
+            ("downloads", "about:downloads"),
+            ("bookmarks", "about:bookmarks"),
+            ("flags", "about:config"),
+            ("version", "about:support"),
+            ("apps", "about:addons"),
+            ("plugins", "about:addons"),
+            ("privacy", "about:preferences#privacy"),
+            ("passwords", "about:preferences#privacy"),
+            ("autofill", "about:preferences#privacy"),
+            ("appearance", "about:preferences#general"),
+            ("search", "about:preferences#search"),
+            ("sync", "about:preferences#sync"),
+        ];
+        
+        let lines: Vec<&str> = content.lines().collect();
+        for (line_num, line) in lines.iter().enumerate() {
+            for cap in CHROME_URL_PATTERN.captures_iter(line) {
+                let full_match = cap.get(0).unwrap().as_str();
+                let page = cap.get(1).unwrap().as_str();
+                
+                // Find matching Firefox URL
+                if let Some((_, firefox_url)) = url_mappings.iter().find(|(chrome_page, _)| *chrome_page == page) {
+                    let replacement = format!("\"{}\"", firefox_url);
+                    result = result.replace(full_match, &replacement);
+                    
+                    changes.push(FileChange {
+                        line_number: line_num + 1,
+                        change_type: ChangeType::Modification,
+                        description: format!("Replaced chrome://{} with {}", page, firefox_url),
+                        old_code: Some(line.to_string()),
+                        new_code: Some(line.replace(full_match, &replacement)),
+                    });
+                }
+            }
+        }
         
         (result, changes)
     }
@@ -851,5 +910,20 @@ mod tests {
         let code = "chrome.runtime.sendMessage({});";
         let result = transformer.add_browser_polyfill(code);
         assert!(result.contains("typeof browser === 'undefined'"));
+    }
+    
+    #[test]
+    fn test_chrome_url_replacement() {
+        let transformer = JavaScriptTransformer::new(&[]);
+        let code = r#"
+            window.open('chrome://extensions/');
+            const url = "chrome://settings/";
+            fetch('chrome://history/');
+        "#;
+        let (result, _) = transformer.replace_chrome_urls(code);
+        assert!(result.contains("about:addons"));
+        assert!(result.contains("about:preferences"));
+        assert!(result.contains("about:history"));
+        assert!(!result.contains("chrome://"));
     }
 }

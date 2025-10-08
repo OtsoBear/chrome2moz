@@ -1,7 +1,7 @@
 //! Chrome to Firefox Extension Converter CLI
 
 use chrome_to_firefox::{convert_extension, ConversionOptions, CalculatorType};
-use chrome_to_firefox::scripts::fetch_chrome_only_apis;
+use chrome_to_firefox::scripts::{fetch_chrome_only_apis, check_keyboard_shortcuts};
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::PathBuf;
@@ -49,6 +49,9 @@ enum Commands {
 
     /// List WebExtension APIs supported in Chrome but not Firefox
     ChromeOnlyApis,
+    
+    /// Check for keyboard shortcut conflicts with Firefox
+    CheckShortcuts,
 }
 
 fn main() {
@@ -189,6 +192,27 @@ fn main() {
 
             if let Err(err) = runtime.block_on(fetch_chrome_only_apis::run()) {
                 eprintln!("{}", "❌ Failed to fetch API list".red().bold());
+                eprintln!("{}", format!("Error: {err}").red());
+                std::process::exit(1);
+            }
+        }
+        
+        Commands::CheckShortcuts => {
+            println!(
+                "{}",
+                "Checking Firefox Keyboard Shortcuts".bold().blue()
+            );
+            println!();
+
+            let runtime = tokio::runtime::Runtime::new()
+                .expect("failed to initialize async runtime");
+
+            // Pass current directory to check for shortcuts in the project
+            let current_dir = std::env::current_dir().ok();
+            let project_path = current_dir.as_deref();
+
+            if let Err(err) = runtime.block_on(check_keyboard_shortcuts::run_with_project_path(project_path)) {
+                eprintln!("{}", "❌ Failed to check keyboard shortcuts".red().bold());
                 eprintln!("{}", format!("Error: {err}").red());
                 std::process::exit(1);
             }
