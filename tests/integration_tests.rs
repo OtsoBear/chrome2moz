@@ -308,10 +308,14 @@ fn test_dnr_conversion() {
     let shim_path = temp_output.path().join("shims/declarative-net-request-stub.js");
     assert!(shim_path.exists(), "declarative-net-request-stub.js not created");
     
-    // Verify stub contains warnings
+    // Verify converter contains webRequest implementation
     let shim_content = fs::read_to_string(&shim_path).unwrap();
-    assert!(shim_content.contains("webRequest"), "Stub missing webRequest migration guidance");
-    assert!(shim_content.contains("not available in Firefox"), "Stub missing warning messages");
+    assert!(shim_content.contains("webRequest"), "Converter missing webRequest implementation");
+    assert!(shim_content.contains("updateDynamicRules"), "Converter missing updateDynamicRules");
+    assert!(shim_content.contains("block") || shim_content.contains("redirect"),
+            "Converter missing action type support");
+    assert!(shim_content.contains("Converting DNR") || shim_content.contains("converter"),
+            "Converter missing conversion logic");
     
     let _ = validate_with_linter(&temp_output.path().to_path_buf());
 }
@@ -445,18 +449,31 @@ chrome.declarativeNetRequest.getDynamicRules();
 #[ignore] // This test downloads from GitHub - run with: cargo test -- --ignored
 fn test_real_world_latex_to_calc() {
     use std::process::Command;
+    use std::env;
     
     println!("🔍 Testing real-world extension: LatexToCalc");
     
-    let temp_dir = TempDir::new().unwrap();
-    let temp_input = temp_dir.path().join("LatexToCalc");
-    let temp_output = temp_dir.path().join("LatexToCalc-Firefox");
+    // Check if we should save output for manual testing
+    let save_output = env::var("SAVE_TEST_OUTPUT").is_ok();
+    let (output_base, _temp_guard) = if save_output {
+        let path = PathBuf::from("./test-output");
+        fs::create_dir_all(&path).unwrap();
+        println!("💾 Output will be saved to: {:?}", path.canonicalize().unwrap());
+        (path, None)
+    } else {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().to_path_buf();
+        (path, Some(temp))
+    };
+    
+    let temp_input = output_base.join("LatexToCalc");
+    let temp_output = output_base.join("LatexToCalc-Firefox");
     
     // Clone the repository
     println!("📦 Cloning LatexToCalc from GitHub...");
     let clone_result = Command::new("git")
         .args(&["clone", "https://github.com/OtsoBear/LatexToCalc.git"])
-        .current_dir(temp_dir.path())
+        .current_dir(&output_base)
         .output();
     
     match clone_result {
@@ -541,11 +558,23 @@ fn test_real_world_latex_to_calc() {
     println!("   - Input: {:?}", temp_input);
     println!("   - Output: {:?}", temp_output);
     println!("   - Status: ✅ SUCCESS");
-    println!("\n💡 To manually test the converted extension:");
-    println!("   1. Open Firefox");
-    println!("   2. Go to about:debugging#/runtime/this-firefox");
-    println!("   3. Click 'Load Temporary Add-on'");
-    println!("   4. Select {:?}/manifest.json", temp_output);
+    
+    if save_output {
+        let manifest_path = temp_output.join("manifest.json");
+        let abs_path = manifest_path.canonicalize().unwrap_or(manifest_path);
+        
+        println!("\n💾 SAVED FOR MANUAL TESTING!");
+        println!("\n🦊 To test in Firefox:");
+        println!("   1. Open Firefox");
+        println!("   2. Go to: about:debugging#/runtime/this-firefox");
+        println!("   3. Click 'Load Temporary Add-on'");
+        println!("   4. Select: {:?}", abs_path);
+        println!("\n📁 Extension saved at: {:?}", temp_output.canonicalize().unwrap_or(temp_output.clone()));
+        println!("\n🧹 To clean up: rm -rf {:?}", output_base);
+    } else {
+        println!("\n💡 To save output for manual testing, run:");
+        println!("   SAVE_TEST_OUTPUT=1 cargo test --test integration_tests -- --ignored --nocapture test_real_world_latex_to_calc");
+    }
 }
 
 #[test]

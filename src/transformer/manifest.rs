@@ -47,13 +47,10 @@ impl ManifestTransformer {
     
     fn add_firefox_settings(&self, manifest: &mut Manifest) {
         if manifest.browser_specific_settings.is_none() {
-            let extension_id = self.get_decision_value("extension_id")
-                .unwrap_or_else(|| {
-                    // Generate Firefox-compliant email-style ID
-                    // Pattern: [a-zA-Z0-9-._]*@[a-zA-Z0-9-._]+
-                    let sanitized_name = Self::sanitize_extension_name(&manifest.name);
-                    format!("{}@converted-extension.org", sanitized_name)
-                });
+            // Generate Firefox-compliant email-style ID
+            // Pattern: [a-zA-Z0-9-._]*@[a-zA-Z0-9-._]+
+            let sanitized_name = Self::sanitize_extension_name(&manifest.name);
+            let extension_id = format!("{}@converted-extension.org", sanitized_name);
             
             manifest.browser_specific_settings = Some(BrowserSpecificSettings {
                 gecko: Some(GeckoSettings {

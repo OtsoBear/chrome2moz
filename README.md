@@ -270,7 +270,51 @@ Check the Browser Console (Ctrl+Shift+J) for any errors.
 - Generates message passing architecture
 - Creates listeners in content scripts
 
-### 4. Compatibility Shims
+### 4. declarativeNetRequest → webRequest Conversion
+Chrome's declarative network request API is automatically converted to Firefox's imperative webRequest:
+
+```javascript
+// Chrome DNR rule (declarative)
+chrome.declarativeNetRequest.updateDynamicRules({
+    addRules: [{
+        id: 1,
+        priority: 1,
+        action: { type: 'block' },
+        condition: {
+            urlFilter: '||ads.example.com/*',
+            resourceTypes: ['script', 'image']
+        }
+    }]
+});
+
+// Converted to Firefox webRequest (imperative)
+browser.webRequest.onBeforeRequest.addListener(
+    (details) => {
+        if (matchesCondition(details)) {
+            return { cancel: true };
+        }
+    },
+    { urls: ['*://ads.example.com/*'], types: ['script', 'image'] },
+    ['blocking']
+);
+```
+
+**Supported DNR Actions:**
+- **Block**: Converts to `onBeforeRequest` with `{cancel: true}`
+- **Redirect**: Converts to `onBeforeRequest` with `{redirectUrl: newUrl}`
+  - Supports URL rewrites, regex substitution, URL transformations
+- **ModifyHeaders**: Converts to `onBeforeSendHeaders`/`onHeadersReceived`
+  - Supports request and response header modifications
+- **UpgradeScheme**: HTTP→HTTPS via redirect
+
+**Rule Features:**
+- Domain and initiator filtering
+- Resource type filtering
+- URL pattern conversion
+- Dynamic and session rule support
+- Debug events emulation
+
+### 5. Compatibility Shims
 Generated shims provide extensive cross-browser support:
 
 **Core Shims:**
@@ -279,9 +323,9 @@ Generated shims provide extensive cross-browser support:
 - `promise-wrapper.js`: Callback-to-promise helpers
 
 **MV3 API Shims:**
-- `storage-session-compat.js`: In-memory fallback for `storage.session`
+- `storage-session-compat.js`: Native in Firefox 115+, in-memory polyfill for older versions
 - `sidepanel-compat.js`: Maps `sidePanel` to Firefox's `sidebarAction`
-- `declarative-net-request-stub.js`: Stubs DNR with migration guidance
+- `declarative-net-request-stub.js`: Converts DNR rules to `webRequest` listeners automatically
 - `user-scripts-compat.js`: Translates `userScripts` API
 
 **Legacy API Shims:**
@@ -305,7 +349,10 @@ Some Chrome features have no or limited Firefox equivalent:
 
 **Partial Support (Shims Provided):**
 - `chrome.sidePanel.*` - Maps to Firefox's `sidebarAction` (different UI)
-- `chrome.declarativeNetRequest.*` - Stubbed with warnings (use `webRequest` instead)
+- `chrome.declarativeNetRequest.*` - Automatically converted to `webRequest` listeners at runtime
+  - Supports: block, redirect, modifyHeaders, upgradeScheme rules
+  - Converts dynamic/session rules to imperative callbacks
+  - Note: Static rulesets and allow rules have limited support
 - `chrome.userScripts.*` - Maps to Firefox's different API structure
 - `chrome.storage.session` - In-memory polyfill (data not persisted)
 - `chrome.privacy.*` - Stubbed as read-only (use Firefox preferences)
