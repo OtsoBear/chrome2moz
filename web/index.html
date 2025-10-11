@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chrome to Firefox Extension Converter</title>
+    <title>chrome2moz - Chrome to Firefox Extension Converter</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Chrome to Firefox Extension Converter</h1>
+            <h1>chrome2moz</h1>
             <p class="subtitle">Convert Chrome MV3 extensions to Firefox-compatible format</p>
         </header>
 
@@ -48,6 +48,12 @@
                 <div class="card">
                     <h2>Analysis Results</h2>
                     <div id="analysisResults"></div>
+                    
+                    <div class="gecko-id-section">
+                        <h3>Firefox Extension ID (Optional)</h3>
+                        <p class="help-text">Add a custom extension ID in email format for Firefox submission (e.g., extension@example.com)</p>
+                        <input type="text" id="geckoIdInput" placeholder="extension@example.com" class="gecko-id-input">
+                    </div>
                     
                     <div class="format-selection">
                         <h3>Output Format</h3>

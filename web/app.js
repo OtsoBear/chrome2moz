@@ -114,74 +114,117 @@ function showAnalysis(data) {
     hideAllSections();
     analysisSection.style.display = 'block';
 
-    let html = '<div class="extension-info">';
-    html += `<div class="info-item"><strong>Extension</strong><span>${data.extension_name}</span></div>`;
-    html += `<div class="info-item"><strong>Version</strong><span>${data.extension_version}</span></div>`;
-    html += `<div class="info-item"><strong>Manifest</strong><span>v${data.manifest_version}</span></div>`;
-    html += `<div class="info-item"><strong>Files</strong><span>${data.file_count}</span></div>`;
+    // Calculate total lines of code (estimate based on file count)
+    const estimatedLines = data.file_count * 50; // Rough estimate
+
+    // Stats grid
+    let html = '<div class="stats-grid">';
+    html += `<div class="stat-card"><div class="label">Extension</div><div class="value">${data.extension_name}</div></div>`;
+    html += `<div class="stat-card"><div class="label">Version</div><div class="value">${data.extension_version}</div></div>`;
+    html += `<div class="stat-card"><div class="label">Manifest</div><div class="value">v${data.manifest_version}</div></div>`;
+    html += `<div class="stat-card"><div class="label">Files</div><div class="value">${data.file_count}</div></div>`;
+    html += `<div class="stat-card"><div class="label">Est. Lines</div><div class="value">~${estimatedLines}</div></div>`;
+    html += `<div class="stat-card"><div class="label">Issues</div><div class="value">${data.incompatibilities.length}</div></div>`;
     html += '</div>';
 
-    // Group incompatibilities by severity
-    const blockers = data.incompatibilities.filter(i => i.severity === 'Blocker');
-    const majors = data.incompatibilities.filter(i => i.severity === 'Major');
-    const minors = data.incompatibilities.filter(i => i.severity === 'Minor');
-    const infos = data.incompatibilities.filter(i => i.severity === 'Info');
+    // Group incompatibilities by category
+    const categories = groupIncompatibilities(data.incompatibilities);
 
     if (data.incompatibilities.length === 0) {
-        html += '<div class="analysis-item" style="border-left-color: #ffffff;">';
-        html += '<h3>No incompatibilities found</h3>';
+        html += '<div style="text-align: center; padding: 2rem; color: var(--text-primary);">';
+        html += '<h3>✓ No incompatibilities found</h3>';
         html += '<p>This extension should work well in Firefox.</p>';
         html += '</div>';
     } else {
-        html += `<h3>Found ${data.incompatibilities.length} incompatibilities:</h3>`;
-
-        if (blockers.length > 0) {
-            html += '<div class="analysis-item">';
-            html += `<h4>${blockers.length} Blocker(s)</h4>`;
-            blockers.forEach(issue => {
-                html += renderIncompatibility(issue);
-            });
-            html += '</div>';
-        }
-
-        if (majors.length > 0) {
-            html += '<div class="analysis-item">';
-            html += `<h4>${majors.length} Major Issue(s)</h4>`;
-            majors.forEach(issue => {
-                html += renderIncompatibility(issue);
-            });
-            html += '</div>';
-        }
-
-        if (minors.length > 0) {
-            html += '<div class="analysis-item">';
-            html += `<h4>${minors.length} Minor Issue(s)</h4>`;
-            minors.forEach(issue => {
-                html += renderIncompatibility(issue);
-            });
-            html += '</div>';
-        }
-
-        if (infos.length > 0) {
-            html += '<div class="analysis-item">';
-            html += `<h4>${infos.length} Info Item(s)</h4>`;
-            infos.forEach(issue => {
-                html += renderIncompatibility(issue);
-            });
-            html += '</div>';
-        }
+        // Render each category as collapsible section
+        Object.keys(categories).forEach((category, index) => {
+            const issues = categories[category];
+            if (issues.length > 0) {
+                html += renderCollapsibleSection(category, issues, index === 0);
+            }
+        });
     }
 
     if (data.warnings && data.warnings.length > 0) {
-        html += '<div class="analysis-item">';
-        html += '<h4>Warnings</h4>';
-        data.warnings.forEach(warning => {
-            html += `<p><strong>${warning.location || 'General'}:</strong> ${warning.message}</p>`;
-        });
-        html += '</div>';
+        html += renderCollapsibleSection('Warnings', data.warnings.map(w => ({
+            description: `<strong>${w.location || 'General'}:</strong> ${w.message}`,
+            severity: 'Info'
+        })), false);
     }
 
     analysisResults.innerHTML = html;
+
+    // Add event listeners for collapsible sections
+    document.querySelectorAll('.section-header').forEach(header => {
+        header.addEventListener('click', toggleSection);
+    });
+}
+
+// Group incompatibilities by category
+function groupIncompatibilities(incompatibilities) {
+    const categories = {
+        'Chrome Namespace Conversions': [],
+        'API Incompatibilities': [],
+        'Manifest Issues': [],
+        'Code Transformations': [],
+        'Other Issues': []
+    };
+
+    incompatibilities.forEach(issue => {
+        const desc = issue.description.toLowerCase();
+        const location = issue.location.toLowerCase();
+
+        if (desc.includes('chrome.') || desc.includes('namespace')) {
+            categories['Chrome Namespace Conversions'].push(issue);
+        } else if (location.includes('manifest')) {
+            categories['Manifest Issues'].push(issue);
+        } else if (desc.includes('api') || desc.includes('method') || desc.includes('property')) {
+            categories['API Incompatibilities'].push(issue);
+        } else if (desc.includes('transform') || desc.includes('convert') || desc.includes('replace')) {
+            categories['Code Transformations'].push(issue);
+        } else {
+            categories['Other Issues'].push(issue);
+        }
+    });
+
+    return categories;
+}
+
+// Render collapsible section
+function renderCollapsibleSection(title, issues, isExpanded = true) {
+    const sectionId = title.replace(/\s+/g, '-').toLowerCase();
+    const expandedClass = isExpanded ? '' : 'collapsed';
+    
+    let html = '<div class="analysis-section">';
+    html += `<div class="section-header ${expandedClass}" data-section="${sectionId}">`;
+    html += '<h3>';
+    html += `<span>${title}</span>`;
+    html += `<span class="section-count">${issues.length}</span>`;
+    html += '</h3>';
+    html += '<span class="toggle-icon">▼</span>';
+    html += '</div>';
+    html += `<div class="section-content ${expandedClass}" id="${sectionId}">`;
+    html += '<div class="incompatibility-list">';
+    
+    issues.forEach(issue => {
+        html += renderIncompatibility(issue);
+    });
+    
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Toggle section visibility
+function toggleSection(e) {
+    const header = e.currentTarget;
+    const sectionId = header.dataset.section;
+    const content = document.getElementById(sectionId);
+    
+    header.classList.toggle('collapsed');
+    content.classList.toggle('collapsed');
 }
 
 // Render individual incompatibility
@@ -212,20 +255,45 @@ async function handleConvert() {
     showProcessing('Converting extension...');
 
     try {
+        // Get gecko.id input value
+        const geckoIdInput = document.getElementById('geckoIdInput');
+        const geckoId = geckoIdInput ? geckoIdInput.value.trim() : '';
+        
+        // Validate gecko.id format if provided
+        if (geckoId && !validateGeckoId(geckoId)) {
+            showError('Invalid extension ID format. Please use email format (e.g., extension@example.com)');
+            return;
+        }
+
         // Read file as array buffer
         const arrayBuffer = await currentFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
         // Convert the extension
         statusDetail.textContent = 'Transforming files...';
+        
+        // TODO: Pass geckoId to WASM function when supported
+        // For now, just convert normally
         convertedData = convert_extension_zip(uint8Array);
 
         // Show success
         showSuccess();
+        
+        // Log gecko.id if provided
+        if (geckoId) {
+            console.log('Custom Gecko ID will be used:', geckoId);
+        }
     } catch (error) {
         console.error('Conversion error:', error);
         showError(`Conversion failed: ${error.message || error}`);
     }
+}
+
+// Validate gecko.id format
+function validateGeckoId(id) {
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(id);
 }
 
 // Handle download
