@@ -8,7 +8,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/OtsoBear/chrome2moz)](https://github.com/OtsoBear/chrome2moz/issues)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/OtsoBear/chrome2moz)](https://github.com/OtsoBear/chrome2moz/commits/main)
 
-A Rust-based tool that automatically converts Chrome Manifest V3 extensions to Firefox-compatible format. Features AST-based parsing, automatic API conversion, manifest transformation, and compatibility shim generation.
+A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically converts Chrome Manifest V3 extensions to Firefox-compatible format. Features AST-based parsing, automatic API conversion, manifest transformation, and compatibility shim generation.
 
 **Live Demo**: [https://otsobear.github.io/chrome2moz/](https://otsobear.github.io/chrome2moz/)
 
@@ -19,7 +19,8 @@ A Rust-based tool that automatically converts Chrome Manifest V3 extensions to F
 - **Automatic API Conversion**: `chrome.*` → `browser.*` with scope awareness
 - **Smart Polyfills**: Context-aware injection based on module type
 - **Manifest Transformation**: MV3 manifests adapted for Firefox
-- **Compatibility Shims**: 10+ auto-generated shims for API differences
+- **Compatibility Shims**: 12 auto-generated shims for API differences
+- **Multiple Input Formats**: Supports `.crx`, `.zip`, or unpacked directories
 - **WebAssembly UI**: Browser-based interface (no installation required)
 - **XPI Packaging**: Ready-to-install Firefox extension packages
 
@@ -45,12 +46,23 @@ git clone https://github.com/OtsoBear/chrome2moz.git
 cd chrome2moz
 cargo build --release
 
-# Analyze
+# Analyze compatibility issues
 ./target/release/chrome2moz analyze -i ./chrome-extension
 
-# Convert
-./target/release/chrome2moz convert -i ./chrome-extension -o ./output --report
+# Convert (with all options)
+./target/release/chrome2moz convert -i ./chrome-extension -o ./output --report --yes
+
+# List Chrome-only APIs
+./target/release/chrome2moz chrome-only-apis
+
+# Check for keyboard shortcut conflicts
+./target/release/chrome2moz check-shortcuts
 ```
+
+**Options:**
+- `--report` - Generate detailed markdown report
+- `--yes` / `-y` - Skip interactive prompts, use defaults
+- `--preserve-chrome` - Keep both chrome and browser namespaces for compatibility
 
 For interactive mode, run without arguments: `./target/release/chrome2moz`
 
@@ -69,11 +81,18 @@ For interactive mode, run without arguments: `./target/release/chrome2moz`
 - Updates background script configuration
 
 **Compatibility Shims:**
-- Session storage polyfill
-- Action API bridging
-- declarativeNetRequest fallbacks
-- sidePanel → sidebarAction mapping
-- Legacy API wrappers
+- `browser` polyfill (chrome → browser namespace)
+- Session storage polyfill (`chrome.storage.session`)
+- Action API compatibility (`chrome.action` ↔ `browser.action`)
+- declarativeNetRequest stub with webRequest migration guidance
+- sidePanel → sidebarAction mapping (different UI placement)
+- Legacy API wrappers (deprecated tabs/windows methods)
+- Downloads API compatibility (removes unsupported options)
+- Notifications compatibility (removes Chrome-only features)
+- Runtime compatibility (Chrome-specific methods)
+- Privacy API stubs
+- User scripts compatibility
+- Promise wrapper utilities
 
 ## Testing in Firefox
 
@@ -85,44 +104,68 @@ For errors, check Browser Console (Ctrl+Shift+J).
 
 ## Known Limitations
 
-**Chrome-Only APIs (No Firefox Equivalent):**
-- `chrome.offscreen.*`
-- `chrome.declarativeContent.*`
-- `chrome.tabGroups.*`
+**Chrome-Only APIs:**
 
-**Partial Support (Shims Provided):**
-- `chrome.sidePanel.*` → `sidebarAction` (different UI)
-- `chrome.declarativeNetRequest.*` → `webRequest` fallback
-- `chrome.storage.session` → In-memory polyfill
-- `chrome.userScripts.*` → Alternative API structure
+**Automatic Conversion Provided:**
+- `chrome.offscreen.*` - Converted to Web Workers, Content Scripts, or Background Script integrations based on usage analysis
+- `chrome.declarativeContent.*` - Converted to content script + messaging patterns
 
-**Other Differences:**
-- Service workers converted to event pages
-- Host permissions are optional in Firefox (user can deny)
+**Stub Only (No Firefox Equivalent):**
+- `chrome.tabGroups.*` - Tab grouping API (stub provided to prevent crashes, but no actual functionality)
+
+**Partial Support (Shims/Alternatives Provided):**
+- `chrome.sidePanel.*` → Firefox `sidebarAction` (different UI placement)
+- `chrome.declarativeNetRequest.*` → Stub with migration guidance to `webRequest`
+- `chrome.storage.session` → In-memory polyfill (data lost on restart)
+- `chrome.userScripts.*` → Maps to Firefox `contentScripts.register()`
+
+**Important Differences:**
+- **Service Workers**: Converted to event pages (Firefox background scripts)
+- **Host Permissions**: Optional by default in Firefox (users can deny)
+- **Manifest Keys**: Some Chrome-specific keys preserved for cross-browser compatibility
 
 ## Building for Development
 
 ```bash
-# Build and test
+# Build CLI tool
 cargo build --release
+
+# Run tests
 cargo test
 
-# Build WebAssembly
+# Build WebAssembly for web UI
 ./build-wasm.sh
 
 # Generate documentation
 cargo doc --open
+
+# Format and lint
+cargo fmt
+cargo clippy -- -D warnings
 ```
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for technical details.
+**Note:** The WASM build requires `wasm-pack`:
+```bash
+curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+```
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for detailed technical documentation.
 
 ## Contributing
 
-Contributions welcome! Areas for improvement:
-- Additional API mappings
-- Test cases
-- Documentation
-- Bug fixes
+Contributions welcome! See [`ARCHITECTURE.md`](ARCHITECTURE.md) for architectural details.
+
+**Areas for improvement:**
+- Additional Chrome-only API conversion strategies
+- More comprehensive API compatibility shims
+- Enhanced test coverage for edge cases
+- Documentation improvements
+- Bug fixes and performance optimizations
+
+**Before submitting:**
+```bash
+cargo fmt && cargo clippy && cargo test
+```
 
 ## License
 
