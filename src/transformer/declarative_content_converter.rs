@@ -20,12 +20,12 @@ impl DeclarativeContentConverter {
 
         for rule in rules {
             for condition in &rule.conditions {
-                if let PageCondition::PageStateMatcher { page_url, css, .. } = condition {
-                    content_script_matches.insert(page_url.to_match_pattern());
+                let PageCondition::PageStateMatcher { page_url, css, .. } = condition;
+                content_script_matches.insert(page_url.to_match_pattern());
 
-                    let check_code = if let Some(selectors) = css {
-                        format!(
-                            r#"
+                let check_code = if let Some(selectors) = css {
+                    format!(
+                        r#"
 // Check page conditions
 const elements = document.querySelectorAll('{}');
 if (elements.length > 0) {{
@@ -36,22 +36,21 @@ if (elements.length > 0) {{
   }});
 }}
 "#,
-                            selectors.join(", ")
-                        )
-                    } else {
-                        // Just URL matching - simpler case
-                        r#"
+                        selectors.join(", ")
+                    )
+                } else {
+                    // Just URL matching - simpler case
+                    r#"
 // URL matched - notify background
 browser.runtime.sendMessage({
   type: 'page_condition_met',
   action: 'show_page_action'
 });
 "#
-                        .to_string()
-                    };
+                    .to_string()
+                };
 
-                    conditions_code.push(check_code);
-                }
+                conditions_code.push(check_code);
             }
         }
 
