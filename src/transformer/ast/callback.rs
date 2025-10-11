@@ -125,7 +125,7 @@ impl CallbackTransformer {
     }
     
     /// Create a .then() call: baseCall.then(callback)
-    fn create_then_call(&self, mut base_call: CallExpr, callback: Box<Expr>) -> CallExpr {
+    fn create_then_call(&self, base_call: CallExpr, callback: Box<Expr>) -> CallExpr {
         // The base call without the callback argument
         CallExpr {
             span: DUMMY_SP,

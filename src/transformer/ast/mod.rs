@@ -53,7 +53,7 @@ impl AstTransformer {
         let mut module = self.parser.parse(code, path)?;
         
         // 2. Detect module type for polyfill injection
-        let module_type = ModuleDetector::detect(&module);
+        let _module_type = ModuleDetector::detect(&module);
         
         // 3. Strip TypeScript if necessary
         if path.extension().map_or(false, |e| e == "ts" || e == "tsx") {

@@ -3,7 +3,7 @@
 //! Tracks variable declarations and references across different scope levels
 //! to distinguish between local variables and global API references.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Scope analyzer for tracking variable bindings
 pub struct ScopeAnalyzer {

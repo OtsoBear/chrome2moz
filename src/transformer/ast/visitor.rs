@@ -5,7 +5,6 @@
 
 use swc_core::ecma::ast::*;
 use swc_core::ecma::visit::{VisitMut, VisitMutWith};
-use swc_core::common::DUMMY_SP;
 use crate::transformer::ast::scope::{ScopeAnalyzer, ScopeKind};
 
 /// Visitor for transforming Chrome APIs to Firefox APIs
@@ -29,7 +28,7 @@ impl ChromeTransformVisitor {
     }
     
     /// Check if this is an importScripts() call
-    fn is_import_scripts_call(&self, expr: &Expr) -> bool {
+    fn _is_import_scripts_call(&self, expr: &Expr) -> bool {
         if let Expr::Call(call) = expr {
             if let Callee::Expr(callee) = &call.callee {
                 if let Expr::Ident(ident) = &**callee {
@@ -62,7 +61,7 @@ impl ChromeTransformVisitor {
     }
     
     /// Transform chrome:// URLs to Firefox equivalents
-    fn transform_chrome_url(&mut self, url: &str) -> Option<String> {
+    fn _transform_chrome_url(&mut self, url: &str) -> Option<String> {
         if !url.starts_with("chrome://") {
             return None;
         }

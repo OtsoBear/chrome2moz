@@ -8,13 +8,13 @@ use crate::models::{
 use anyhow::Result;
 
 pub struct ManifestTransformer {
-    decisions: Vec<SelectedDecision>,
+    _decisions: Vec<SelectedDecision>,
 }
 
 impl ManifestTransformer {
     pub fn new(decisions: &[SelectedDecision]) -> Self {
         Self {
-            decisions: decisions.to_vec(),
+            _decisions: decisions.to_vec(),
         }
     }
     
@@ -192,8 +192,8 @@ impl ManifestTransformer {
         }
     }
     
-    fn get_decision_value(&self, decision_id: &str) -> Option<String> {
-        self.decisions
+    fn _get_decision_value(&self, decision_id: &str) -> Option<String> {
+        self._decisions
             .iter()
             .find(|d| d.decision_id == decision_id)
             .map(|d| format!("option_{}", d.selected_index))

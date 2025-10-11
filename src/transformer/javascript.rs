@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 /// AST-based JavaScript transformer for Chrome to Firefox conversion
 pub struct JavaScriptTransformer {
-    decisions: Vec<SelectedDecision>,
+    _decisions: Vec<SelectedDecision>,
     transformer: CoreAstTransformer,
     last_generated_handlers: Vec<String>,
 }
@@ -19,7 +19,7 @@ impl JavaScriptTransformer {
     /// Create a new AST-based transformer
     pub fn new(decisions: &[SelectedDecision]) -> Self {
         Self {
-            decisions: decisions.to_vec(),
+            _decisions: decisions.to_vec(),
             transformer: CoreAstTransformer::new(),
             last_generated_handlers: Vec::new(),
         }

@@ -67,7 +67,7 @@ impl ModuleDetector {
     }
     
     /// Check if an expression is module.exports
-    fn is_module_exports(&self, expr: &Expr) -> bool {
+    fn _is_module_exports(&self, expr: &Expr) -> bool {
         if let Expr::Member(member) = expr {
             if let Expr::Ident(obj) = &*member.obj {
                 if obj.sym.as_ref() == "module" {
