@@ -1,8 +1,6 @@
 //! Phase 1 tests for AST transformer
-//! 
+//!
 //! Tests the core functionality: parsing, code generation, and basic transformations
-
-#![cfg(feature = "ast-transformer")]
 
 use chrome_to_firefox::transformer::ast::{AstParser, CodeGenerator, ChromeTransformVisitor};
 use swc_core::ecma::visit::VisitMutWith;
@@ -103,25 +101,36 @@ fn test_local_chrome_variable_not_transformed() {
 
 #[test]
 fn test_typescript_stripping() {
-    let parser = AstParser::new();
-    let codegen = CodeGenerator::new();
+    use swc_core::common::GLOBALS;
+    use swc_core::ecma::ast::Program;
+    use swc_core::ecma::visit::FoldWith;
     
-    let code = "const x: string = 'test'; const y: number = 42;";
-    let mut module = parser.parse(code, Path::new("test.ts")).unwrap();
-    
-    // Apply TypeScript stripping
-    use swc_core::ecma::transforms::typescript::strip;
-    use swc_core::ecma::visit::VisitMutWith;
-    let mut stripper = strip(Default::default());
-    module.visit_mut_with(&mut stripper);
-    
-    let result = codegen.generate(&module).unwrap();
-    
-    assert!(!result.contains(": string"), "Should strip string type annotation");
-    assert!(!result.contains(": number"), "Should strip number type annotation");
-    assert!(result.contains("const x = "), "Should keep variable declaration");
-    assert!(result.contains("'test'"), "Should keep string value");
-    assert!(result.contains("42"), "Should keep number value");
+    GLOBALS.set(&Default::default(), || {
+        let parser = AstParser::new();
+        let codegen = CodeGenerator::new();
+        
+        let code = "const x: string = 'test'; const y: number = 42;";
+        let module = parser.parse(code, Path::new("test.ts")).unwrap();
+        
+        // Apply TypeScript stripping - wrap in Program first
+        use swc_core::ecma::transforms::typescript::strip;
+        let program = Program::Module(module);
+        let mut pass = strip(Default::default());
+        let program = program.fold_with(&mut pass);
+        
+        let module = match program {
+            Program::Module(m) => m,
+            _ => panic!("Expected Module"),
+        };
+        
+        let result = codegen.generate(&module).unwrap();
+        
+        assert!(!result.contains(": string"), "Should strip string type annotation");
+        assert!(!result.contains(": number"), "Should strip number type annotation");
+        assert!(result.contains("const x = "), "Should keep variable declaration");
+        assert!(result.contains("'test'"), "Should keep string value");
+        assert!(result.contains("42"), "Should keep number value");
+    });
 }
 
 #[test]
@@ -193,38 +202,50 @@ fn test_chrome_in_strings_not_transformed() {
 
 #[test]
 fn test_complex_typescript_code() {
-    let parser = AstParser::new();
-    let codegen = CodeGenerator::new();
-    let mut visitor = ChromeTransformVisitor::new();
+    use swc_core::common::GLOBALS;
+    use swc_core::ecma::ast::Program;
+    use swc_core::ecma::visit::{FoldWith, VisitMutWith};
     
-    let code = r#"
-        interface StorageData {
-            key: string;
-            value: number;
-        }
+    GLOBALS.set(&Default::default(), || {
+        let parser = AstParser::new();
+        let codegen = CodeGenerator::new();
+        let mut visitor = ChromeTransformVisitor::new();
         
-        const getData = async (): Promise<StorageData> => {
-            return chrome.storage.local.get('key');
+        let code = r#"
+            interface StorageData {
+                key: string;
+                value: number;
+            }
+            
+            const getData = async (): Promise<StorageData> => {
+                return chrome.storage.local.get('key');
+            };
+        "#;
+        let module = parser.parse(code, Path::new("test.ts")).unwrap();
+        
+        // Strip TypeScript - wrap in Program first
+        use swc_core::ecma::transforms::typescript::strip;
+        let program = Program::Module(module);
+        let mut pass = strip(Default::default());
+        let program = program.fold_with(&mut pass);
+        
+        let mut module = match program {
+            Program::Module(m) => m,
+            _ => panic!("Expected Module"),
         };
-    "#;
-    let mut module = parser.parse(code, Path::new("test.ts")).unwrap();
-    
-    // Strip TypeScript
-    use swc_core::ecma::transforms::typescript::strip;
-    let mut stripper = strip(Default::default());
-    module.visit_mut_with(&mut stripper);
-    
-    // Transform chrome to browser
-    module.visit_mut_with(&mut visitor);
-    
-    let result = codegen.generate(&module).unwrap();
-    
-    // Interface should be removed
-    assert!(!result.contains("interface"), "Should remove interface");
-    
-    // Function should remain with transformed API
-    assert!(result.contains("browser.storage"), "Should transform chrome to browser");
-    assert!(result.contains("getData"), "Should preserve function name");
+        
+        // Transform chrome to browser
+        module.visit_mut_with(&mut visitor);
+        
+        let result = codegen.generate(&module).unwrap();
+        
+        // Interface should be removed
+        assert!(!result.contains("interface"), "Should remove interface");
+        
+        // Function should remain with transformed API
+        assert!(result.contains("browser.storage"), "Should transform chrome to browser");
+        assert!(result.contains("getData"), "Should preserve function name");
+    });
 }
 
 #[test]

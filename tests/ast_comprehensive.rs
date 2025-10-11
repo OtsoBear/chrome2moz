@@ -3,7 +3,6 @@
 //! Tests edge cases, real-world scenarios, and transformation accuracy
 
 use chrome_to_firefox::transformer::javascript::JavaScriptTransformer;
-use chrome_to_firefox::models::SelectedDecision;
 use std::path::PathBuf;
 
 #[test]

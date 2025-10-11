@@ -6,15 +6,10 @@
 //! - Smart polyfill injection
 //! - Scope analysis with transformations
 
-#[cfg(feature = "ast-transformer")]
 use chrome_to_firefox::transformer::ast::*;
-
-#[cfg(feature = "ast-transformer")]
 use std::path::Path;
-#[cfg(feature = "ast-transformer")]
 use swc_core::common::GLOBALS;
 
-#[cfg(feature = "ast-transformer")]
 fn full_transform(code: &str, path: &Path) -> String {
     GLOBALS.set(&Default::default(), || {
         let mut transformer = AstTransformer::new();
@@ -22,7 +17,6 @@ fn full_transform(code: &str, path: &Path) -> String {
     })
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_callback_with_chrome_to_browser() {
     let code = r#"chrome.storage.get('key', function(result) { console.log(result); });"#;
@@ -32,7 +26,6 @@ fn test_callback_with_chrome_to_browser() {
     assert!(result.contains("browser") || result.contains(".then"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_nested_callbacks_unlimited() {
     let code = r#"
@@ -54,7 +47,6 @@ fn test_nested_callbacks_unlimited() {
     assert!(result.matches(".then").count() >= 5 || result.contains("await"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_es_module_with_polyfill() {
     let code = r#"
@@ -67,7 +59,6 @@ fn test_es_module_with_polyfill() {
     assert!(result.contains("import") && result.contains("browser-polyfill"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_commonjs_with_polyfill() {
     let code = r#"
@@ -80,7 +71,6 @@ fn test_commonjs_with_polyfill() {
     assert!(result.contains("require") && result.contains("browser-polyfill"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_script_with_polyfill() {
     let code = r#"chrome.storage.get('key');"#;
@@ -90,7 +80,6 @@ fn test_script_with_polyfill() {
     assert!(result.contains("typeof browser"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_scope_aware_transformation() {
     let code = r#"
@@ -106,7 +95,6 @@ fn test_scope_aware_transformation() {
     assert!(result.contains("browser.storage.get") || result.contains("chrome.storage.get"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_typescript_with_callbacks() {
     let code = r#"
@@ -124,7 +112,6 @@ fn test_typescript_with_callbacks() {
     assert!(result.contains(".then") || result.contains("browser"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_complex_real_world_scenario() {
     let code = r#"
@@ -163,7 +150,6 @@ fn test_complex_real_world_scenario() {
     assert!(result.contains(".then") || result.contains("resolve"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_mixed_callback_and_promise_apis() {
     let code = r#"
@@ -181,7 +167,6 @@ fn test_mixed_callback_and_promise_apis() {
     assert!(result.matches(".then").count() >= 2);
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_arrow_functions_in_callbacks() {
     let code = r#"
@@ -197,7 +182,6 @@ fn test_arrow_functions_in_callbacks() {
     assert!(result.contains(".then"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_preserves_non_api_callbacks() {
     let code = r#"
@@ -217,7 +201,6 @@ fn test_preserves_non_api_callbacks() {
     assert!(result.contains(".then") || result.contains("browser"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_module_detection_priority() {
     // ES Module takes priority over everything
@@ -233,7 +216,6 @@ fn test_module_detection_priority() {
     assert!(import_count >= 2); // Original + polyfill
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_d_ts_file_handling() {
     let code = r#"
@@ -250,7 +232,6 @@ fn test_d_ts_file_handling() {
     assert!(!result.contains(": void"));
 }
 
-#[cfg(feature = "ast-transformer")]
 #[test]
 fn test_jsx_tsx_support() {
     let code = r#"
@@ -278,21 +259,13 @@ fn test_jsx_tsx_support() {
 
 #[test]
 fn test_phase2_summary() {
-    #[cfg(feature = "ast-transformer")]
-    {
-        println!("\n=== Phase 2 Advanced Features Test Summary ===");
-        println!("✅ Callback transformation with unlimited nesting");
-        println!("✅ Module system detection (ES/CJS/Script)");
-        println!("✅ Smart polyfill injection");
-        println!("✅ Scope-aware transformations");
-        println!("✅ TypeScript + Callback handling");
-        println!("✅ Complex real-world scenarios");
-        println!("✅ JSX/TSX support");
-        println!("==============================================\n");
-    }
-    
-    #[cfg(not(feature = "ast-transformer"))]
-    {
-        println!("Skipping Phase 2 tests (ast-transformer feature not enabled)");
-    }
+    println!("\n=== Phase 2 Advanced Features Test Summary ===");
+    println!("✅ Callback transformation with unlimited nesting");
+    println!("✅ Module system detection (ES/CJS/Script)");
+    println!("✅ Smart polyfill injection");
+    println!("✅ Scope-aware transformations");
+    println!("✅ TypeScript + Callback handling");
+    println!("✅ Complex real-world scenarios");
+    println!("✅ JSX/TSX support");
+    println!("==============================================\n");
 }

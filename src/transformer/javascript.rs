@@ -143,7 +143,6 @@ impl JavaScriptTransformer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
     
     #[test]
     fn test_transform_simple_code() {
