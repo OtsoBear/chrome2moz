@@ -35,10 +35,8 @@ The easiest way to use the converter is through our WebAssembly-powered web inte
 # Build the WebAssembly module
 ./build-wasm.sh
 
-# Serve the web UI (choose one)
+# Serve the web UI, with for example python:
 cd web && python3 -m http.server 8080
-# OR
-npx http-server web -p 8080
 
 # Open http://localhost:8080 in your browser
 ```
@@ -48,7 +46,7 @@ npx http-server web -p 8080
 - Instant compatibility analysis
 - One-click conversion
 - Direct download of Firefox-compatible extensions
-- Runs entirely in your browser (no server needed)
+- Runs entirely in your browser with WASM (no server backend)
 - Choose output format (.xpi or .zip)
 
 ### Command-Line Installation
