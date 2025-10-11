@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use std::path::Path;
 
 use swc_core::common::{SourceMap, FileName, FilePathMapping, sync::Lrc};
-use swc_core::ecma::parser::{Parser, StringInput, Syntax, TsConfig, EsConfig};
+use swc_core::ecma::parser::{Parser, StringInput, Syntax, TsSyntax, EsSyntax};
 use swc_core::ecma::ast::Module;
 
 /// AST parser with TypeScript and JSX support
@@ -37,7 +37,7 @@ impl AstParser {
             let syntax = self.detect_syntax(path);
             
             let source_file = self.source_map.new_source_file(
-                FileName::Real(path.to_path_buf()),
+                FileName::Real(path.to_path_buf()).into(),
                 code.to_string(),
             );
             
@@ -53,28 +53,28 @@ impl AstParser {
     /// Detect syntax mode based on file extension
     fn detect_syntax(&self, path: &Path) -> Syntax {
         match path.extension().and_then(|s| s.to_str()) {
-            Some("ts") => Syntax::Typescript(TsConfig {
+            Some("ts") => Syntax::Typescript(TsSyntax {
                 tsx: false,
                 decorators: true,
                 dts: false,
                 no_early_errors: true,
                 disallow_ambiguous_jsx_like: false,
             }),
-            Some("tsx") => Syntax::Typescript(TsConfig {
+            Some("tsx") => Syntax::Typescript(TsSyntax {
                 tsx: true,
                 decorators: true,
                 dts: false,
                 no_early_errors: true,
                 disallow_ambiguous_jsx_like: false,
             }),
-            Some("d.ts") => Syntax::Typescript(TsConfig {
+            Some("d.ts") => Syntax::Typescript(TsSyntax {
                 tsx: false,
                 decorators: true,
                 dts: true,
                 no_early_errors: true,
                 disallow_ambiguous_jsx_like: false,
             }),
-            Some("jsx") => Syntax::Es(EsConfig {
+            Some("jsx") => Syntax::Es(EsSyntax {
                 jsx: true,
                 fn_bind: false,
                 decorators: false,
@@ -86,7 +86,7 @@ impl AstParser {
                 auto_accessors: false,
                 explicit_resource_management: false,
             }),
-            _ => Syntax::Es(EsConfig {
+            _ => Syntax::Es(EsSyntax {
                 jsx: false,
                 fn_bind: false,
                 decorators: false,

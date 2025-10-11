@@ -85,10 +85,9 @@ impl ExecuteScriptTransformer {
                     if let PropOrSpread::Prop(prop_box) = &mut obj.props[idx] {
                         if let Prop::KeyValue(kv) = &**prop_box {
                             let new_prop = Prop::KeyValue(KeyValueProp {
-                                key: PropName::Ident(Ident {
+                                key: PropName::Ident(IdentName {
                                     span: DUMMY_SP,
                                     sym: "func".into(),
-                                    optional: false,
                                 }),
                                 value: kv.value.clone(),
                             });

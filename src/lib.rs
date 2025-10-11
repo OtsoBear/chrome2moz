@@ -11,8 +11,16 @@ pub mod packager;
 pub mod validator;
 pub mod report;
 pub mod utils;
+
+// CLI-only modules
+#[cfg(feature = "cli")]
 pub mod scripts;
+#[cfg(feature = "cli")]
 pub mod cli;
+
+// WebAssembly bindings
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
 
 pub use models::{Extension, Manifest, ConversionContext, ConversionResult};
 pub use analyzer::analyze_extension;

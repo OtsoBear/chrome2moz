@@ -4,7 +4,7 @@
 //! whether the code uses ES Modules, CommonJS, or browser globals.
 
 use swc_core::ecma::ast::*;
-use swc_core::common::DUMMY_SP;
+use swc_core::common::{DUMMY_SP, SyntaxContext};
 use crate::transformer::ast::module_detector::ModuleType;
 
 /// Polyfill injector that adds appropriate browser-polyfill imports
@@ -61,11 +61,11 @@ impl PolyfillInjector {
             span: DUMMY_SP,
             expr: Box::new(Expr::Call(CallExpr {
                 span: DUMMY_SP,
-                callee: Callee::Expr(Box::new(Expr::Ident(Ident {
+                ctxt: SyntaxContext::empty(),
+                callee: Callee::Expr(Box::new(Expr::Ident(IdentName {
                     span: DUMMY_SP,
                     sym: "require".into(),
-                    optional: false,
-                }))),
+                }.into()))),
                 args: vec![ExprOrSpread {
                     spread: None,
                     expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -89,11 +89,7 @@ impl PolyfillInjector {
                 left: Box::new(Expr::Unary(UnaryExpr {
                     span: DUMMY_SP,
                     op: UnaryOp::TypeOf,
-                    arg: Box::new(Expr::Ident(Ident {
-                        span: DUMMY_SP,
-                        sym: "browser".into(),
-                        optional: false,
-                    })),
+                    arg: Box::new(Expr::Ident(Ident::new("browser".into(), DUMMY_SP, SyntaxContext::empty()))),
                 })),
                 right: Box::new(Expr::Lit(Lit::Str(Str {
                     span: DUMMY_SP,
@@ -103,6 +99,7 @@ impl PolyfillInjector {
             })),
             cons: Box::new(Stmt::Block(BlockStmt {
                 span: DUMMY_SP,
+                ctxt: SyntaxContext::empty(),
                 stmts: vec![Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
                     expr: Box::new(Expr::Assign(AssignExpr {
@@ -111,19 +108,17 @@ impl PolyfillInjector {
                         left: AssignTarget::Simple(SimpleAssignTarget::Member(MemberExpr {
                             span: DUMMY_SP,
                             obj: Box::new(Expr::This(ThisExpr { span: DUMMY_SP })),
-                            prop: MemberProp::Ident(Ident {
+                            prop: MemberProp::Ident(IdentName {
                                 span: DUMMY_SP,
                                 sym: "browser".into(),
-                                optional: false,
                             }),
                         })),
                         right: Box::new(Expr::Member(MemberExpr {
                             span: DUMMY_SP,
                             obj: Box::new(Expr::This(ThisExpr { span: DUMMY_SP })),
-                            prop: MemberProp::Ident(Ident {
+                            prop: MemberProp::Ident(IdentName {
                                 span: DUMMY_SP,
                                 sym: "chrome".into(),
-                                optional: false,
                             }),
                         })),
                     })),

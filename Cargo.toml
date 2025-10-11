@@ -1,29 +1,30 @@
 [package]
-name = "chrome-to-firefox"
+name = "chrome2moz"
 version = "0.1.0"
 edition = "2021"
-authors = ["Chrome-to-Firefox Contributors"]
+authors = ["Chrome2Moz Contributors"]
 description = "Convert Chrome MV3 extensions to Firefox-compatible MV3"
 license = "MIT"
-repository = "https://github.com/OtsoBear/chrome-to-firefox"
+repository = "https://github.com/OtsoBear/chrome2moz"
 
 [[bin]]
-name = "chrome-to-firefox"
+name = "chrome2moz"
 path = "src/main.rs"
+required-features = ["cli"]
 
 [lib]
-name = "chrome_to_firefox"
+name = "chrome2moz"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Serialization (pinned for SWC compatibility)
-serde = { version = "=1.0.210", features = ["derive"] }
+serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "1.0"
 json5 = "0.4"
 
 # File handling
-zip = "0.6"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 walkdir = "2.4"
 
 # Error handling
@@ -34,24 +35,24 @@ thiserror = "1.0"
 regex = "1.10"
 lazy_static = "1.4"
 
-# CLI
-clap = { version = "4.4", features = ["derive"] }
-dialoguer = "0.11"
-colored = "2.1"
-indicatif = "0.17"
+# CLI (not needed for WASM)
+clap = { version = "4.4", features = ["derive"], optional = true }
+dialoguer = { version = "0.11", optional = true }
+colored = { version = "2.1", optional = true }
+indicatif = { version = "0.17", optional = true }
 
 # AST-based JavaScript/TypeScript parsing (optional, enabled with ast-transformer feature)
 
 # String manipulation
 Inflector = "0.11"
 
-# Networking
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-futures = "0.3"
+# Networking (CLI only)
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"], optional = true }
+futures = { version = "0.3", optional = true }
 
 # AST transformer dependencies (now default - only transformer)
-swc_core = { version = "0.90", features = [
+swc_core = { version = "44.0.2", features = [
     "ecma_parser",
     "ecma_transforms",
     "ecma_transforms_typescript",
@@ -61,14 +62,23 @@ swc_core = { version = "0.90", features = [
     "common"
 ] }
 
+# WebAssembly dependencies
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["console"] }
+console_error_panic_hook = "0.1"
+getrandom = { version = "0.2", features = ["js"] }
+ahash = "=0.7.8"
+
 [dev-dependencies]
 tempfile = "3.8"
 pretty_assertions = "1.4"
 test-case = "3.3"
 
-# No features needed - AST is now the only transformer
+# Features
 [features]
-default = []
+default = ["cli"]
+cli = ["dep:clap", "dep:dialoguer", "dep:colored", "dep:indicatif"]
 
 [profile.release]
 opt-level = 3

@@ -36,6 +36,7 @@ test-timers-ext/
 test-timers-output/
 final-test-output/
 *.xpi
+*.zip
 
 # Logs
 *.log
@@ -48,3 +49,7 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+# WebAssembly build artifacts
+web/pkg/
+*.wasm

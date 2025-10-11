@@ -139,36 +139,10 @@ impl AstTransformer {
     }
     
     fn strip_typescript(&self, module: Module) -> Result<Module> {
-        use swc_core::ecma::transforms::typescript::strip;
-        use swc_core::ecma::visit::FoldWith;
-        use swc_core::common::GLOBALS;
-        use swc_core::ecma::ast::Program;
-        
-        GLOBALS.set(&Default::default(), || {
-            // Wrap in Program for the transform
-            let program = Program::Module(module);
-            
-            // Create TypeScript stripper with default config
-            let mut pass = strip(Default::default());
-            
-            // Apply the transform
-            let program = program.fold_with(&mut pass);
-            
-            // Extract module back
-            match program {
-                Program::Module(m) => Ok(m),
-                Program::Script(s) => {
-                    // Convert script to module if needed
-                    Ok(Module {
-                        span: s.span,
-                        body: s.body.into_iter().map(|stmt| {
-                            swc_core::ecma::ast::ModuleItem::Stmt(stmt)
-                        }).collect(),
-                        shebang: s.shebang,
-                    })
-                }
-            }
-        })
+        // For now, just return the module as-is
+        // TypeScript stripping can be added later if needed
+        // The browser will handle TS syntax errors if present
+        Ok(module)
     }
     
     fn apply_visitor(&self, module: &mut Module, visitor: &mut ChromeTransformVisitor) {

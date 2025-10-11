@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome to Firefox Extension Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Chrome to Firefox Extension Converter</h1>
+            <p class="subtitle">Convert Chrome MV3 extensions to Firefox-compatible format</p>
+        </header>
+
+        <main>
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div class="upload-box" id="uploadBox">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <h2>Upload Chrome Extension</h2>
+                        <p>Drop your extension ZIP file here or click to browse</p>
+                        <input type="file" id="fileInput" accept=".zip" hidden>
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            Choose File
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Processing Section -->
+            <section class="processing-section" id="processingSection" style="display: none;">
+                <div class="status-card">
+                    <div class="spinner"></div>
+                    <h3 id="statusMessage">Processing...</h3>
+                    <p id="statusDetail"></p>
+                </div>
+            </section>
+
+            <!-- Analysis Results Section -->
+            <section class="results-section" id="analysisSection" style="display: none;">
+                <div class="card">
+                    <h2>Analysis Results</h2>
+                    <div id="analysisResults"></div>
+                    
+                    <div class="format-selection">
+                        <h3>Output Format</h3>
+                        <div class="format-options">
+                            <label class="format-option">
+                                <input type="radio" name="format" value="xpi" checked>
+                                <div class="format-label">
+                                    <strong>.xpi (Firefox Extension)</strong>
+                                    <small>Standard Firefox extension format</small>
+                                </div>
+                            </label>
+                            <label class="format-option">
+                                <input type="radio" name="format" value="zip">
+                                <div class="format-label">
+                                    <strong>.zip (Universal)</strong>
+                                    <small>Compatible with both browsers</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="convertBtn">
+                            Convert Extension
+                        </button>
+                        <button class="btn btn-secondary" id="cancelBtn">
+                            Upload Different File
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Success Section -->
+            <section class="success-section" id="successSection" style="display: none;">
+                <div class="card success-card">
+                    <div class="success-icon">✓</div>
+                    <h2>Conversion Successful</h2>
+                    <p>Your Firefox-compatible extension is ready for download.</p>
+                    
+                    <div class="download-info">
+                        <p class="info-text" id="downloadInfo"></p>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-success btn-large" id="downloadBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Download Extension
+                        </button>
+                        <button class="btn btn-secondary" id="newConversionBtn">
+                            Convert Another Extension
+                        </button>
+                    </div>
+                    
+                    <div class="next-steps">
+                        <h3>Installation Instructions</h3>
+                        <ol>
+                            <li>Open Firefox and navigate to <code>about:debugging#/runtime/this-firefox</code></li>
+                            <li>Click "Load Temporary Add-on"</li>
+                            <li>Select the downloaded file or the <code>manifest.json</code> from an extracted folder</li>
+                            <li>Test your extension thoroughly</li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Error Section -->
+            <section class="error-section" id="errorSection" style="display: none;">
+                <div class="card error-card">
+                    <div class="error-icon">×</div>
+                    <h2>Conversion Failed</h2>
+                    <p id="errorMessage"></p>
+                    <button class="btn btn-primary" id="retryBtn">
+                        Try Again
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>
+                <a href="https://github.com/OtsoBear/chrome2moz" target="_blank">GitHub</a> •
+                <a href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions" target="_blank">Firefox Extensions Docs</a>
+            </p>
+            <p class="version">Powered by WebAssembly</p>
+        </footer>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

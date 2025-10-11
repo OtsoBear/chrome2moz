@@ -1,8 +1,8 @@
 //! Chrome to Firefox Extension Converter CLI
 
-use chrome_to_firefox::{convert_extension, ConversionOptions, CalculatorType};
-use chrome_to_firefox::scripts::{fetch_chrome_only_apis, check_keyboard_shortcuts};
-use chrome_to_firefox::cli::run_interactive_mode;
+use chrome2moz::{convert_extension, ConversionOptions, CalculatorType};
+use chrome2moz::scripts::{fetch_chrome_only_apis, check_keyboard_shortcuts};
+use chrome2moz::cli::run_interactive_mode;
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::PathBuf;

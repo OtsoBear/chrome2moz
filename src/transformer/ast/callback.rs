@@ -5,7 +5,7 @@
 
 use swc_core::ecma::ast::*;
 use swc_core::ecma::visit::{VisitMut, VisitMutWith};
-use swc_core::common::DUMMY_SP;
+use swc_core::common::{DUMMY_SP, SyntaxContext};
 
 /// Transforms callbacks to promises with unlimited nesting support
 pub struct CallbackTransformer {
@@ -129,13 +129,13 @@ impl CallbackTransformer {
         // The base call without the callback argument
         CallExpr {
             span: DUMMY_SP,
+            ctxt: SyntaxContext::empty(),
             callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: Box::new(Expr::Call(base_call)),
-                prop: MemberProp::Ident(Ident {
+                prop: MemberProp::Ident(IdentName {
                     span: DUMMY_SP,
                     sym: "then".into(),
-                    optional: false,
                 }),
             }))),
             args: vec![ExprOrSpread {
