@@ -41,6 +41,12 @@ fileInput.addEventListener('change', handleFileSelect);
 uploadBox.addEventListener('dragover', handleDragOver);
 uploadBox.addEventListener('dragleave', handleDragLeave);
 uploadBox.addEventListener('drop', handleDrop);
+uploadBox.addEventListener('click', (e) => {
+    // Prevent default label behavior to avoid double-triggering
+    if (e.target === uploadBox || e.target.closest('.icon') || e.target.closest('.text')) {
+        // Let the label's default behavior handle opening file dialog
+    }
+});
 convertBtn.addEventListener('click', handleConvert);
 cancelBtn.addEventListener('click', resetUI);
 downloadBtn.addEventListener('click', handleDownload);
