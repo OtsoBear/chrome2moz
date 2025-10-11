@@ -78,7 +78,7 @@ test-case = "3.3"
 # Features
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:dialoguer", "dep:colored", "dep:indicatif"]
+cli = ["dep:clap", "dep:dialoguer", "dep:colored", "dep:indicatif", "dep:reqwest", "dep:tokio", "dep:futures"]
 
 [profile.release]
 opt-level = 3

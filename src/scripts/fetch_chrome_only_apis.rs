@@ -169,9 +169,10 @@ async fn process_api_files(client: &Client, api_files: &[String]) -> Result<Vec<
     let mut results = Vec::new();
     let mut processed = 0usize;
 
-    let mut stream = stream::iter(api_files.iter().cloned())
-        .map(|filename| {
+    let mut stream = stream::iter(api_files.iter().map(|s| s.as_str()))
+        .map(|filename: &str| {
             let client = client.clone();
+            let filename = filename.to_string();
             async move {
                 let data = fetch_api_file(&client, &filename).await;
                 (filename, data)

@@ -94,7 +94,7 @@ fn main() {
                     
                     if report {
                         let report_path = output.with_extension("md");
-                        if let Ok(report_content) = chrome_to_firefox::report::generate_report(&result) {
+                        if let Ok(report_content) = chrome2moz::report::generate_report(&result) {
                             if std::fs::write(&report_path, report_content).is_ok() {
                                 println!("  - Report: {}", report_path.display());
                             }
@@ -129,9 +129,9 @@ fn main() {
             println!("{}", "Analyzing extension...".bold());
             println!();
             
-            match chrome_to_firefox::packager::load_extension(&input) {
+            match chrome2moz::packager::load_extension(&input) {
                 Ok(extension) => {
-                    match chrome_to_firefox::analyze_extension(extension) {
+                    match chrome2moz::analyze_extension(extension) {
                         Ok(context) => {
                             println!("{}", "📊 Analysis Results".bold().blue());
                             println!("{}", "=".repeat(50).blue());
@@ -153,10 +153,10 @@ fn main() {
                                 
                                 for issue in &context.incompatibilities {
                                     let severity_str = match issue.severity {
-                                        chrome_to_firefox::models::Severity::Blocker => "🛑 BLOCKER".red(),
-                                        chrome_to_firefox::models::Severity::Major => "⚠️  MAJOR".yellow(),
-                                        chrome_to_firefox::models::Severity::Minor => "ℹ️  MINOR".blue(),
-                                        chrome_to_firefox::models::Severity::Info => "💡 INFO".white(),
+                                        chrome2moz::models::Severity::Blocker => "🛑 BLOCKER".red(),
+                                        chrome2moz::models::Severity::Major => "⚠️  MAJOR".yellow(),
+                                        chrome2moz::models::Severity::Minor => "ℹ️  MINOR".blue(),
+                                        chrome2moz::models::Severity::Info => "💡 INFO".white(),
                                     };
                                     
                                     println!("{} [{}]", severity_str, issue.location);
