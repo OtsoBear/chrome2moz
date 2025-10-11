@@ -25,15 +25,6 @@ This was a comprehensive implementation plan for the AST-based transformer. The 
 
 **Status**: The AST transformer has been implemented. The plan is archived in git history.
 
-### 2. Test Output Files
-**Files Removed**:
-- `output2`
-- `output3`
-- `output4`
-- `output6`
-
-**Type**: Test artifacts  
-**Reason**: Temporary debugging outputs, not needed in repository
 
 ### 3. test-callback-conversion/ (Submodule)
 **Type**: Git submodule  
@@ -135,14 +126,29 @@ browser.alarms.onAlarm.addListener((alarm) => {
 ```
 
 #### Why It Was Removed
-1. **Edge Case**: Most extensions don't use long timers
-2. **Complexity**: Required timer tracking and alarm listener generation
-3. **Maintenance**: Added complexity for minimal benefit
-4. **Better Handled Manually**: Extension developers can convert these manually if needed
+1. **Firefox Doesn't Need It**: Unlike Chrome's aggressive service worker termination, Firefox event pages are more persistent and timers work reliably
+2. **Edge Case**: Most extensions don't use long timers (>60s)
+3. **Complexity**: Required timer tracking and alarm listener generation
+4. **Better Handled Manually**: If needed for Chrome compatibility, developers can convert manually
 
 #### Impact
-- Extensions with long timers (>30s) need manual conversion
-- Short timers continue to work as-is
+- **Firefox**: Long timers work normally - no breaking changes
+- **Chrome**: For Chrome compatibility, developers may want to convert long timers to alarms manually
+- **Recommendation**: Test your extension's timer behavior in both browsers
+
+#### Technical Details
+
+**Chrome (Service Workers)**:
+- Service workers can be terminated after 30 seconds of inactivity
+- Long timers (>30s) may not fire if the service worker is terminated
+- `chrome.alarms` API persists across terminations
+
+**Firefox (Event Pages)**:
+- Event pages are less aggressively terminated than Chrome service workers
+- Long timers typically work as expected
+- `browser.alarms` has different behavior and isn't always necessary
+
+**Bottom Line**: Long timers won't break in Firefox. The removed conversion was primarily a Chrome service worker workaround.
 
 #### Code Removed
 - `TimerConversion` struct
