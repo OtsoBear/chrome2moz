@@ -17,8 +17,8 @@ path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
+# Serialization (pinned for SWC compatibility)
+serde = { version = "=1.0.210", features = ["derive"] }
 serde_json = "1.0"
 json5 = "0.4"
 
@@ -40,12 +40,7 @@ dialoguer = "0.11"
 colored = "2.1"
 indicatif = "0.17"
 
-# JavaScript parsing (using regex for simplicity - can upgrade to full AST later)
-# swc_ecma_parser = "0.147"
-# swc_common = "0.36"
-# swc_ecma_ast = "0.118"
-# swc_ecma_visit = "0.104"
-# swc_ecma_codegen = "0.155"
+# AST-based JavaScript/TypeScript parsing (optional, enabled with ast-transformer feature)
 
 # String manipulation
 Inflector = "0.11"
@@ -55,10 +50,25 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 futures = "0.3"
 
+# AST transformer dependencies (now default - only transformer)
+swc_core = { version = "0.90", features = [
+    "ecma_parser",
+    "ecma_transforms",
+    "ecma_transforms_typescript",
+    "ecma_codegen",
+    "ecma_visit",
+    "ecma_ast",
+    "common"
+] }
+
 [dev-dependencies]
 tempfile = "3.8"
 pretty_assertions = "1.4"
 test-case = "3.3"
+
+# No features needed - AST is now the only transformer
+[features]
+default = []
 
 [profile.release]
 opt-level = 3

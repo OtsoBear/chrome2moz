@@ -1,6 +1,7 @@
 //! Firefox extension package builder
 
 use crate::models::ConversionResult;
+use crate::utils::replace_chrome_urls;
 use anyhow::{Context, Result};
 use std::fs::{self, File};
 use std::io::Write;
@@ -44,6 +45,27 @@ pub fn create_zip_from_directory(source_dir: &Path, zip_path: &Path) -> Result<(
     
     zip.finish()?;
     Ok(())
+}
+
+/// Check if file is a text file that should have URL replacement
+fn is_text_file(path: &Path) -> bool {
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        matches!(
+            ext.to_lowercase().as_str(),
+            "html" | "htm" | "css" | "json" | "xml" | "svg" | "txt" | "md" | "js" | "jsx" | "ts" | "tsx"
+        )
+    } else {
+        false
+    }
+}
+
+/// Check if file is a JavaScript/TypeScript file (already processed by AST transformer)
+fn is_js_file(path: &Path) -> bool {
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        matches!(ext.to_lowercase().as_str(), "js" | "jsx" | "ts" | "tsx")
+    } else {
+        false
+    }
 }
 
 /// Build directory structure (for development)
@@ -102,7 +124,19 @@ pub fn build_complete_directory(
             if let Some(parent) = dest_path.parent() {
                 fs::create_dir_all(parent)?;
             }
-            fs::write(dest_path, content)?;
+            
+            // Apply URL replacement to text files (HTML, CSS, JSON, etc.)
+            // JS files already have it applied by AST transformer
+            let content_to_write = if is_text_file(path) && !is_js_file(path) {
+                match String::from_utf8(content.clone()) {
+                    Ok(text) => replace_chrome_urls(&text).into_bytes(),
+                    Err(_) => content.clone(), // Binary file
+                }
+            } else {
+                content.clone()
+            };
+            
+            fs::write(dest_path, content_to_write)?;
         }
     }
     

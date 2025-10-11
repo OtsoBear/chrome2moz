@@ -225,6 +225,7 @@ fn test_storage_session_conversion() {
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: false,
+        
     };
     
     let result = convert_extension(
@@ -259,6 +260,7 @@ fn test_sidepanel_conversion() {
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: false,
+        
     };
     
     let result = convert_extension(
@@ -295,6 +297,7 @@ fn test_dnr_conversion() {
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: false,
+        
     };
     
     let result = convert_extension(
@@ -332,6 +335,7 @@ fn test_userscripts_conversion() {
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: false,
+        
     };
     
     let result = convert_extension(
@@ -365,6 +369,7 @@ fn test_legacy_tabs_conversion() {
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: false,
+        
     };
     
     let result = convert_extension(
@@ -418,6 +423,7 @@ chrome.declarativeNetRequest.getDynamicRules();
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: true,
+        
     };
     
     let result = convert_extension(
@@ -504,6 +510,7 @@ fn test_real_world_latex_to_calc() {
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: true,
+        
     };
     
     let result = convert_extension(
@@ -607,6 +614,7 @@ chrome.storage.local.get("key", (result) => {
         target_calculator: CalculatorType::Both,
         preserve_chrome_compatibility: true,
         generate_report: false,
+        
     };
     
     let result = convert_extension(
