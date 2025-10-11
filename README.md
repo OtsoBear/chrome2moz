@@ -7,7 +7,6 @@
 [![GitHub Stars](https://img.shields.io/github/stars/OtsoBear/chrome2moz?style=social)](https://github.com/OtsoBear/chrome2moz/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/OtsoBear/chrome2moz)](https://github.com/OtsoBear/chrome2moz/issues)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/OtsoBear/chrome2moz)](https://github.com/OtsoBear/chrome2moz/commits/main)
-[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey.svg)](https://github.com/OtsoBear/chrome2moz)
 
 A Rust-based tool that automatically converts Chrome Manifest V3 extensions to Firefox-compatible format. Features AST-based parsing, automatic API conversion, manifest transformation, and compatibility shim generation.
 
