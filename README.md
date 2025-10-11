@@ -10,7 +10,7 @@ A powerful Rust-based tool that automatically converts Chrome Manifest V3 extens
 
 ## Features
 
-- **AST-Based Parsing**: Uses SWC for accurate, semantic code transformations (95%+ accuracy)
+- **AST-Based Parsing**: Uses SWC for accurate, semantic code transformations
 - **Full TypeScript Support**: Native `.ts`, `.tsx`, and `.d.ts` file handling with automatic type stripping
 - **Automatic API Conversion**: Converts `chrome.*` namespace to `browser.*` with scope awareness
 - **Module System Detection**: Auto-detects ES modules, CommonJS, and browser globals
