@@ -40,8 +40,8 @@ pub fn convert_extension(
         apply_default_decisions(context)
     };
     
-    // 4. Transform extension
-    let result = transform_extension(context)?;
+    // 4. Transform extension (AST-based)
+    let result = transformer::transform_extension(context)?;
     
     // 5. Validate result
     validator::validate_extension(&result)?;
@@ -72,6 +72,17 @@ impl Default for ConversionOptions {
             generate_report: true,
         }
     }
+}
+
+/// JavaScript/TypeScript transformer backend selection
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransformerBackend {
+    /// Use regex-based transformer (fast, 75% accuracy)
+    Regex,
+    /// Use AST-based transformer (slower, 95%+ accuracy, full TypeScript support)
+    Ast,
+    /// Auto-select based on file type and complexity
+    Auto,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

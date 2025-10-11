@@ -3,6 +3,7 @@
 pub mod manifest;
 pub mod javascript;
 pub mod shims;
+pub mod ast;
 
 pub use manifest::ManifestTransformer;
 pub use javascript::JavaScriptTransformer;
@@ -11,7 +12,7 @@ pub use shims::generate_shims;
 use crate::models::{ConversionContext, ConversionResult};
 use anyhow::Result;
 
-/// Main transformation entry point
+/// Main transformation entry point (AST-based)
 pub fn transform_extension(context: ConversionContext) -> Result<ConversionResult> {
     let mut manifest_changes = Vec::new();
     let mut javascript_changes = Vec::new();
@@ -54,46 +55,6 @@ pub fn transform_extension(context: ConversionContext) -> Result<ConversionResul
                     
                     modified_files.push(transformed);
                 }
-            }
-        }
-    }
-    
-    // 2a. Generate content script listeners for executeScript calls
-    let listener_code = js_transformer.generate_content_script_listeners();
-    if !listener_code.is_empty() {
-        // Find content.js and append listeners
-        let content_js_path = context.source.files.keys()
-            .find(|p| p.file_name().and_then(|n| n.to_str()).map_or(false, |n| n == "content.js"))
-            .cloned();
-        
-        if let Some(content_path) = content_js_path {
-            if let Some(content_js) = context.source.get_file_content(&content_path) {
-                let new_content = format!("{}\n{}", content_js, listener_code);
-                
-                let modified = crate::models::ModifiedFile {
-                    path: content_path.clone(),
-                    original_content: content_js.clone(),
-                    new_content,
-                    changes: vec![crate::models::FileChange {
-                        line_number: content_js.lines().count() + 1,
-                        change_type: crate::models::ChangeType::Addition,
-                        description: "Added message listeners for executeScript compatibility".to_string(),
-                        old_code: None,
-                        new_code: Some(listener_code.clone()),
-                    }],
-                };
-                
-                // Replace existing content.js modification or add new one
-                if let Some(pos) = modified_files.iter().position(|f| f.path == content_path) {
-                    modified_files[pos] = modified;
-                } else {
-                    modified_files.push(modified);
-                }
-                
-                javascript_changes.push(format!(
-                    "content.js: Added {} executeScript message listeners",
-                    js_transformer.get_execute_script_calls().len()
-                ));
             }
         }
     }

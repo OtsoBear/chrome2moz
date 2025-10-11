@@ -215,7 +215,7 @@ pub async fn run_with_project_path(project_path: Option<&Path>) -> Result<()> {
     println!("{}", "=".repeat(80));
     
     // Collect all shortcuts from Firefox and extension
-    let mut firefox_used: HashSet<String> = firefox_shortcuts.iter()
+    let firefox_used: HashSet<String> = firefox_shortcuts.iter()
         .map(|s| s.normalized.clone())
         .collect();
     
