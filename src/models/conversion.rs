@@ -1,6 +1,7 @@
 //! Conversion context and results
 
 use super::{Extension, Incompatibility, Manifest};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -61,7 +62,7 @@ pub struct ConversionResult {
     pub report: ConversionReport,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModifiedFile {
     pub path: PathBuf,
     pub original_content: String,
@@ -69,14 +70,14 @@ pub struct ModifiedFile {
     pub changes: Vec<FileChange>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewFile {
     pub path: PathBuf,
     pub content: String,
     pub purpose: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileChange {
     pub line_number: usize,
     pub change_type: ChangeType,
@@ -85,7 +86,7 @@ pub struct FileChange {
     pub new_code: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChangeType {
     Addition,
     Modification,

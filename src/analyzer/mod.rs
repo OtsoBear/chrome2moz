@@ -2,6 +2,11 @@
 
 pub mod manifest;
 pub mod api;
+pub mod offscreen;
+pub mod declarative_content;
+
+pub use offscreen::OffscreenAnalyzer;
+pub use declarative_content::DeclarativeContentAnalyzer;
 
 use crate::models::{Extension, ConversionContext};
 use anyhow::Result;

@@ -4,10 +4,18 @@ pub mod manifest;
 pub mod javascript;
 pub mod shims;
 pub mod ast;
+pub mod tab_groups;
+pub mod offscreen_converter;
+pub mod declarative_content_converter;
+pub mod chrome_only_converter;
 
 pub use manifest::ManifestTransformer;
 pub use javascript::JavaScriptTransformer;
 pub use shims::generate_shims;
+pub use tab_groups::TabGroupsConverter;
+pub use offscreen_converter::OffscreenConverter;
+pub use declarative_content_converter::DeclarativeContentConverter;
+pub use chrome_only_converter::ChromeOnlyApiConverter;
 
 use crate::models::{ConversionContext, ConversionResult};
 use anyhow::Result;
