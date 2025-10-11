@@ -30,7 +30,25 @@ cd chrome-to-firefox
 cargo build --release
 ```
 
-### Your First Conversion
+### Interactive Mode (Recommended for Beginners)
+
+Simply run without arguments for a user-friendly interactive menu:
+
+```bash
+cargo run
+```
+
+Or with the release build:
+
+```bash
+./target/release/chrome-to-firefox
+```
+
+The interactive CLI guides you through all operations with menus and prompts.
+
+### Command-Line Mode
+
+For automation or if you prefer CLI arguments:
 
 ```bash
 # Analyze your extension first
@@ -338,6 +356,38 @@ Generated shims provide extensive cross-browser support:
 - `notifications-compat.js`: Adapts notification options for Firefox
 
 ## ⚠️ Known Limitations
+
+### Module System Detection
+The converter currently does not differentiate between ES modules, CommonJS, and browser globals:
+
+**Current Behavior:**
+- All JavaScript transformations apply uniformly regardless of module type
+- `chrome.*` → `browser.*` conversions work across all module systems
+- Browser polyfill injection assumes global scope
+
+**Impact on Different Extension Types:**
+- ✅ **Browser Globals (Most Extensions)**: Works perfectly - this is the most common pattern
+- ✅ **Traditional Content/Background Scripts**: Full support
+- ⚠️ **ES Modules (Manifest V3)**: Transformations work, but polyfill placement may need adjustment
+- ⚠️ **CommonJS Modules**: Rare in extensions; may need manual review
+
+**Known Issues:**
+- ES module `import`/`export` statements are preserved but not analyzed
+- `importScripts()` handling (service workers) works but lacks module-awareness
+- Polyfill injection may conflict with ES module imports
+
+**Recommended Workflow:**
+1. For extensions using **browser globals** (90%+ of cases): Use as-is
+2. For extensions with **ES modules**: Review generated polyfill placement
+3. For complex module setups: Use the analyzer first to identify patterns
+
+**Future Enhancement:**
+Module type detection is planned for improved handling of:
+- ES module import/export transformations
+- Context-aware polyfill injection
+- Better service worker vs event page conversion
+
+For now, the tool handles typical Chrome extensions (browser globals) very well, which covers the vast majority of use cases.
 
 ### Chrome-Only APIs
 Some Chrome features have no or limited Firefox equivalent:

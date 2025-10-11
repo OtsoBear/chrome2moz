@@ -44,6 +44,27 @@ pub(crate) struct ExecuteScriptCall {
     full_text: String,
 }
 
+/// Structure to hold information about a callback to be transformed
+#[derive(Debug, Clone)]
+struct CallbackInfo {
+    line_number: usize,
+    start_pos: usize,
+    end_pos: usize,
+    start_line: usize,
+    end_line: usize,
+    api_namespace: String,
+    api_call: String,
+    api_method: String,
+    args: String,
+    callback_param: String,
+    callback_body: String,
+    has_error_check: bool,
+    nesting_depth: usize,
+    has_control_flow: bool,
+    is_named_function: bool,
+    original_text: String,
+}
+
 pub struct JavaScriptTransformer {
     decisions: Vec<SelectedDecision>,
     execute_script_calls: Vec<ExecuteScriptCall>,
@@ -164,28 +185,381 @@ if (typeof browser === 'undefined') {
     
     fn convert_callbacks_to_promises(&self, content: &str) -> (String, Vec<FileChange>) {
         let mut changes = Vec::new();
-        let result = content.to_string();
+        let mut result = content.to_string();
         
-        // This is a simplified version - full implementation would use AST transformation
-        // For now, we'll add comments suggesting manual conversion
+        // Parse and transform callbacks
+        let callbacks = self.parse_all_callbacks(&result);
         
-        let lines: Vec<&str> = content.lines().collect();
-        for (line_num, line) in lines.iter().enumerate() {
-            if line.contains("function(") && (line.contains("browser.") || line.contains("chrome.")) {
-                // Detect potential callback pattern
-                if line.contains("browser.storage") || line.contains("browser.tabs") {
-                    changes.push(FileChange {
-                        line_number: line_num + 1,
-                        change_type: ChangeType::Modification,
-                        description: "Callback detected - consider converting to promise".to_string(),
-                        old_code: Some(line.to_string()),
-                        new_code: None,
-                    });
-                }
-            }
+        // Sort by position (reverse order) to maintain positions during replacement
+        let mut transformable: Vec<_> = callbacks.into_iter()
+            .filter(|cb| self.should_transform_callback(cb))
+            .collect();
+        transformable.sort_by(|a, b| b.start_pos.cmp(&a.start_pos));
+        
+        // Transform each callback
+        for callback in transformable {
+            let transformed = self.transform_callback_to_promise(&callback);
+            
+            // Replace in content
+            result.replace_range(callback.start_pos..callback.end_pos, &transformed);
+            
+            changes.push(FileChange {
+                line_number: callback.line_number,
+                change_type: ChangeType::Modification,
+                description: format!("Converted callback to promise: {}", callback.api_call),
+                old_code: Some(callback.original_text.clone()),
+                new_code: Some(transformed),
+            });
         }
         
         (result, changes)
+    }
+    
+    /// Parse all callback patterns in the code
+    fn parse_all_callbacks(&self, content: &str) -> Vec<CallbackInfo> {
+        let mut callbacks = Vec::new();
+        let lines: Vec<&str> = content.lines().collect();
+        
+        let mut line_idx = 0;
+        while line_idx < lines.len() {
+            // Check for callback patterns on this line
+            if let Some(callback) = self.try_parse_callback_at_line(content, &lines, line_idx) {
+                let end_line = callback.end_line;
+                callbacks.push(callback);
+                // Skip lines we've already processed
+                line_idx = end_line;
+            } else {
+                line_idx += 1;
+            }
+        }
+        
+        callbacks
+    }
+    
+    /// Try to parse a callback starting at the given line
+    fn try_parse_callback_at_line(&self, full_content: &str, lines: &[&str], start_line: usize) -> Option<CallbackInfo> {
+        let line = lines[start_line];
+        
+        // Pattern: browser/chrome.api.method(args, callback)
+        // Look for patterns like:
+        // - browser.storage.get('key', (result) => { ... })
+        // - browser.storage.get('key', function(result) { ... })
+        // - browser.tabs.query({}, tabs => { ... })
+        
+        let api_pattern = regex::Regex::new(
+            r"(browser|chrome)\.([\w.]+)\s*\(([^,\)]*(?:,\s*[^,\)]*)*),\s*(function\s*\(|(?:\w+|\([^)]*\))\s*=>|\(\s*\w+\s*\)\s*=>)"
+        ).unwrap();
+        
+        if let Some(cap) = api_pattern.captures(line) {
+            let api_namespace = cap.get(1).unwrap().as_str();
+            let api_method = cap.get(2).unwrap().as_str();
+            let args = cap.get(3).unwrap().as_str();
+            let callback_start = cap.get(4).unwrap();
+            
+            // Calculate start position in full content
+            let start_pos = self.line_to_byte_pos(full_content, start_line) + cap.get(0).unwrap().start();
+            
+            // Extract callback parameter name
+            let param_name = self.extract_callback_param(&callback_start.as_str());
+            
+            // Find the callback body by matching braces
+            let callback_start_in_line = callback_start.end();
+            let (callback_body, end_line, end_pos) = self.extract_callback_body_with_braces(
+                full_content,
+                lines,
+                start_line,
+                callback_start_in_line
+            )?;
+            
+            // Check for error handling pattern
+            let has_error_check = callback_body.contains("chrome.runtime.lastError")
+                || callback_body.contains("browser.runtime.lastError");
+            
+            // Calculate nesting depth
+            let nesting_depth = self.calculate_nesting_depth(&callback_body);
+            
+            // Check for control flow
+            let has_control_flow = self.has_control_flow(&callback_body);
+            
+            // Reconstruct original text
+            let original_text = full_content[start_pos..end_pos].to_string();
+            
+            return Some(CallbackInfo {
+                line_number: start_line + 1,
+                start_pos,
+                end_pos,
+                start_line,
+                end_line,
+                api_namespace: api_namespace.to_string(),
+                api_call: format!("{}.{}", api_namespace, api_method),
+                api_method: api_method.to_string(),
+                args: args.trim().to_string(),
+                callback_param: param_name,
+                callback_body,
+                has_error_check,
+                nesting_depth,
+                has_control_flow,
+                is_named_function: false, // We don't match named function references
+                original_text,
+            });
+        }
+        
+        None
+    }
+    
+    /// Extract callback body by matching braces
+    fn extract_callback_body_with_braces(
+        &self,
+        full_content: &str,
+        lines: &[&str],
+        start_line: usize,
+        start_offset_in_line: usize
+    ) -> Option<(String, usize, usize)> {
+        let mut body = String::new();
+        let mut brace_count = 0;
+        let mut found_opening_brace = false;
+        let mut current_line = start_line;
+        let mut char_offset = start_offset_in_line;
+        
+        // Calculate starting byte position in full content
+        let line_start_pos = self.line_to_byte_pos(full_content, start_line);
+        let mut current_pos = line_start_pos + start_offset_in_line;
+        
+        while current_line < lines.len() {
+            let line = lines[current_line];
+            let chars: Vec<char> = line.chars().collect();
+            
+            while char_offset < chars.len() {
+                let ch = chars[char_offset];
+                
+                if ch == '{' {
+                    brace_count += 1;
+                    if !found_opening_brace {
+                        found_opening_brace = true;
+                        char_offset += 1;
+                        current_pos += 1;
+                        continue; // Don't include opening brace
+                    }
+                } else if ch == '}' {
+                    brace_count -= 1;
+                    if brace_count == 0 && found_opening_brace {
+                        // Found matching closing brace
+                        // Skip any trailing ); or );
+                        let mut end_pos = current_pos + 1;
+                        let mut end_offset = char_offset + 1;
+                        
+                        // Skip closing parens and semicolons
+                        while end_offset < chars.len() {
+                            let next_ch = chars[end_offset];
+                            if next_ch == ')' || next_ch == ';' || next_ch.is_whitespace() {
+                                end_pos += 1;
+                                end_offset += 1;
+                                if next_ch == ';' {
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        return Some((body.trim().to_string(), current_line, end_pos));
+                    }
+                }
+                
+                if found_opening_brace && brace_count > 0 {
+                    body.push(ch);
+                }
+                
+                char_offset += 1;
+                current_pos += 1;
+            }
+            
+            // Move to next line
+            if found_opening_brace && brace_count > 0 {
+                body.push('\n');
+            }
+            current_line += 1;
+            char_offset = 0;
+            current_pos = self.line_to_byte_pos(full_content, current_line);
+        }
+        
+        None
+    }
+    
+    /// Convert line number to byte position in content
+    fn line_to_byte_pos(&self, content: &str, line_num: usize) -> usize {
+        content.lines()
+            .take(line_num)
+            .map(|line| line.len() + 1) // +1 for newline
+            .sum()
+    }
+    
+    /// Extract callback parameter name from callback declaration
+    fn extract_callback_param(&self, callback_start: &str) -> String {
+        // Handle different patterns:
+        // - function(result)
+        // - (result) =>
+        // - result =>
+        
+        if callback_start.starts_with("function") {
+            // Extract between ( and )
+            if let Some(start) = callback_start.find('(') {
+                if let Some(end) = callback_start.find(')') {
+                    return callback_start[start + 1..end].trim().to_string();
+                }
+            }
+        } else if callback_start.contains("=>") {
+            // Arrow function
+            let before_arrow = callback_start.split("=>").next().unwrap_or("").trim();
+            if before_arrow.starts_with('(') && before_arrow.ends_with(')') {
+                return before_arrow[1..before_arrow.len() - 1].trim().to_string();
+            }
+            return before_arrow.to_string();
+        }
+        
+        "result".to_string() // Default
+    }
+    
+    /// Calculate nesting depth of callbacks
+    fn calculate_nesting_depth(&self, callback_body: &str) -> usize {
+        let nested_pattern = regex::Regex::new(
+            r"(browser|chrome)\.\w+\.\w+\s*\([^)]*,\s*(?:function\s*\(|\w+\s*=>|\([^)]*\)\s*=>)"
+        ).unwrap();
+        
+        let matches: Vec<_> = nested_pattern.find_iter(callback_body).collect();
+        matches.len() + 1 // +1 for the current callback
+    }
+    
+    /// Check if callback body contains control flow keywords
+    fn has_control_flow(&self, callback_body: &str) -> bool {
+        let control_keywords = ["return ", "break ", "continue "];
+        control_keywords.iter().any(|kw| callback_body.contains(kw))
+    }
+    
+    /// Determine if a callback should be transformed
+    fn should_transform_callback(&self, callback: &CallbackInfo) -> bool {
+        // Skip if nesting is too deep (>3 levels)
+        if callback.nesting_depth > 3 {
+            return false;
+        }
+        
+        // Skip if it's a named function reference
+        if callback.is_named_function {
+            return false;
+        }
+        
+        // Skip if it has complex control flow
+        if callback.has_control_flow {
+            return false;
+        }
+        
+        // Skip if callback has multiple parameters (unusual pattern)
+        if callback.callback_param.contains(',') {
+            return false;
+        }
+        
+        true
+    }
+    
+    /// Transform a callback to a promise-based pattern
+    fn transform_callback_to_promise(&self, callback: &CallbackInfo) -> String {
+        if callback.has_error_check {
+            self.transform_error_checking_callback(callback)
+        } else if callback.nesting_depth > 1 {
+            self.transform_nested_callback(callback)
+        } else {
+            self.transform_simple_callback(callback)
+        }
+    }
+    
+    /// Transform a simple callback to .then()
+    fn transform_simple_callback(&self, callback: &CallbackInfo) -> String {
+        format!(
+            "{}.{}({})\n    .then(({}) => {{\n{}\n    }})",
+            callback.api_namespace,
+            callback.api_method,
+            callback.args,
+            callback.callback_param,
+            self.indent_code(&callback.callback_body, 8)
+        )
+    }
+    
+    /// Transform error-checking callback to .then().catch()
+    fn transform_error_checking_callback(&self, callback: &CallbackInfo) -> String {
+        // Parse the callback body to separate error handling from success code
+        let (success_code, error_code) = self.split_error_handling(&callback.callback_body);
+        
+        let mut result = format!(
+            "{}.{}({})\n    .then(({}) => {{",
+            callback.api_namespace,
+            callback.api_method,
+            callback.args,
+            callback.callback_param
+        );
+        
+        if !success_code.trim().is_empty() {
+            result.push_str(&format!("\n{}", self.indent_code(&success_code, 8)));
+        }
+        
+        result.push_str("\n    })");
+        
+        if !error_code.trim().is_empty() {
+            result.push_str(&format!(
+                "\n    .catch((error) => {{\n{}\n    }})",
+                self.indent_code(&self.convert_error_handling(&error_code), 8)
+            ));
+        }
+        
+        result
+    }
+    
+    /// Split callback body into success and error handling code
+    fn split_error_handling(&self, callback_body: &str) -> (String, String) {
+        // Look for if (browser.runtime.lastError) or if (chrome.runtime.lastError)
+        let error_pattern = regex::Regex::new(
+            r"if\s*\(\s*(?:browser|chrome)\.runtime\.lastError\s*\)\s*\{([^}]*)\}\s*(?:else\s*\{([^}]*)\})?"
+        ).unwrap();
+        
+        if let Some(cap) = error_pattern.captures(callback_body) {
+            let error_code = cap.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let success_code = cap.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            
+            // If there's no else block, success code is everything after the if block
+            let final_success = if success_code.is_empty() {
+                // Remove the error check from the original body
+                error_pattern.replace(callback_body, "").to_string()
+            } else {
+                success_code
+            };
+            
+            return (final_success, error_code);
+        }
+        
+        // No error handling found, return all as success code
+        (callback_body.to_string(), String::new())
+    }
+    
+    /// Convert error handling code to use error parameter instead of lastError
+    fn convert_error_handling(&self, error_code: &str) -> String {
+        let mut result = error_code.to_string();
+        
+        // Replace browser.runtime.lastError with error
+        result = result.replace("browser.runtime.lastError.message", "error.message");
+        result = result.replace("browser.runtime.lastError", "error");
+        result = result.replace("chrome.runtime.lastError.message", "error.message");
+        result = result.replace("chrome.runtime.lastError", "error");
+        
+        result
+    }
+    
+    /// Transform nested callbacks by flattening them
+    fn transform_nested_callback(&self, callback: &CallbackInfo) -> String {
+        // For nested callbacks, try to flatten them into a promise chain
+        // This is a simplified version - handles 2-3 levels
+        
+        // For now, just use simple transformation
+        // A more sophisticated version would recursively parse and flatten
+        self.transform_simple_callback(callback)
     }
     
     fn handle_import_scripts(&self, content: &str) -> (String, Vec<FileChange>) {
