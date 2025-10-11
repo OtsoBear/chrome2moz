@@ -98,7 +98,6 @@ For errors, check Browser Console (Ctrl+Shift+J).
 
 **Other Differences:**
 - Service workers converted to event pages
-- `importScripts()` not supported in Firefox
 - Host permissions are optional in Firefox (user can deny)
 
 ## Building for Development
