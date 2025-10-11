@@ -6,6 +6,42 @@ use regex::Regex;
 use lazy_static::lazy_static;
 use std::path::PathBuf;
 
+/// Helper function to determine if a variable should be persisted
+fn should_persist_variable(name: &str) -> bool {
+    // Skip common patterns that shouldn't be persisted
+    let skip_patterns = vec![
+        // Browser APIs and built-ins
+        "chrome", "browser", "window", "document", "console",
+        // Common constants
+        "API_KEY", "VERSION", "CONFIG",
+        // Event listeners
+        "listener", "handler",
+        // Regex patterns
+        "REGEX", "PATTERN",
+        // Imports
+        "import", "require",
+    ];
+    
+    // Skip if name matches common skip patterns
+    for pattern in skip_patterns {
+        if name.to_uppercase().contains(&pattern.to_uppercase()) {
+            return false;
+        }
+    }
+    
+    // Skip if variable name is all caps (likely a constant)
+    if name.chars().all(|c| c.is_uppercase() || c == '_') {
+        return false;
+    }
+    
+    // Skip if it looks like a class or constructor
+    if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+        return false;
+    }
+    
+    true
+}
+
 lazy_static! {
     // Regex patterns for Chrome API transformations
     static ref CHROME_NAMESPACE: Regex = Regex::new(r"\bchrome\.").unwrap();
@@ -25,6 +61,15 @@ lazy_static! {
     // Pattern to detect chrome:// URLs
     static ref CHROME_URL_PATTERN: Regex = Regex::new(
         r#"['"]chrome://([a-zA-Z0-9\-_]+)/?([^'"]*?)['"]"#
+    ).unwrap();
+    
+    // Pattern to detect setTimeout/setInterval with long delays
+    static ref SETTIMEOUT_PATTERN: Regex = Regex::new(
+        r"setTimeout\s*\(\s*([^,]+),\s*(\d+)\s*\)"
+    ).unwrap();
+    
+    static ref SETINTERVAL_PATTERN: Regex = Regex::new(
+        r"setInterval\s*\(\s*([^,]+),\s*(\d+)\s*\)"
     ).unwrap();
 }
 
@@ -68,6 +113,25 @@ struct CallbackInfo {
 pub struct JavaScriptTransformer {
     decisions: Vec<SelectedDecision>,
     execute_script_calls: Vec<ExecuteScriptCall>,
+    global_variables: Vec<GlobalVariable>,
+    converted_timers: Vec<TimerConversion>,
+}
+
+/// Structure to track timer conversions
+#[derive(Debug, Clone)]
+struct TimerConversion {
+    alarm_name: String,
+    original_delay_ms: u64,
+    is_interval: bool,
+    callback_code: String,
+}
+
+/// Structure to track global variables for persistence
+#[derive(Debug, Clone)]
+struct GlobalVariable {
+    name: String,
+    line: usize,
+    is_const: bool,
 }
 
 impl JavaScriptTransformer {
@@ -75,6 +139,8 @@ impl JavaScriptTransformer {
         Self {
             decisions: decisions.to_vec(),
             execute_script_calls: Vec::new(),
+            global_variables: Vec::new(),
+            converted_timers: Vec::new(),
         }
     }
     
@@ -83,7 +149,12 @@ impl JavaScriptTransformer {
         let mut new_content = content.to_string();
         let mut changes = Vec::new();
         
-        // 1. Add browser polyfill at the top if chrome APIs are used
+        // 1. Detect global variables in background scripts for persistence
+        if path.to_string_lossy().contains("background") {
+            self.global_variables = self.detect_global_variables(&new_content);
+        }
+        
+        // 2. Add browser polyfill at the top if chrome APIs are used
         if CHROME_NAMESPACE.is_match(&new_content) {
             new_content = self.add_browser_polyfill(&new_content);
             changes.push(FileChange {
@@ -95,44 +166,58 @@ impl JavaScriptTransformer {
             });
         }
         
-        // 2. Convert chrome.* to browser.*
+        // 3. Add global variable persistence wrapper (background scripts only)
+        if path.to_string_lossy().contains("background") && !self.global_variables.is_empty() {
+            let (wrapped, persist_changes) = self.add_variable_persistence_wrapper(&new_content);
+            new_content = wrapped;
+            changes.extend(persist_changes);
+        }
+        
+        // 4. Convert chrome.* to browser.*
         let (transformed, chrome_changes) = self.convert_chrome_to_browser(&new_content);
         new_content = transformed;
         changes.extend(chrome_changes);
         
-        // 3. Detect and extract executeScript calls AFTER chrome->browser conversion
+        // 5. Detect and extract executeScript calls AFTER chrome->browser conversion
         if path.to_string_lossy().contains("background") {
             self.execute_script_calls = self.extract_execute_script_calls(&new_content);
         }
         
-        // 4. Transform executeScript to message passing (background.js)
+        // 6. Transform executeScript to message passing (background.js)
         if path.to_string_lossy().contains("background") && !self.execute_script_calls.is_empty() {
             let (transformed, exec_changes) = self.transform_execute_script_to_messages(&new_content);
             new_content = transformed;
             changes.extend(exec_changes);
         }
         
-        // 5. Convert callback-style to promise-style
+        // 7. Convert callback-style to promise-style
         let (transformed, callback_changes) = self.convert_callbacks_to_promises(&new_content);
         new_content = transformed;
         changes.extend(callback_changes);
         
-        // 6. Handle importScripts in service workers
+        // 8. Handle importScripts in service workers
         if path.to_string_lossy().contains("background") {
             let (transformed, import_changes) = self.handle_import_scripts(&new_content);
             new_content = transformed;
             changes.extend(import_changes);
         }
         
-        // 7. Convert chrome.runtime.lastError checks
+        // 9. Convert chrome.runtime.lastError checks
         let (transformed, error_changes) = self.convert_last_error_checks(&new_content);
         new_content = transformed;
         changes.extend(error_changes);
         
-        // 8. Replace Chrome settings URLs with Firefox equivalents
+        // 10. Replace Chrome settings URLs with Firefox equivalents
         let (transformed, url_changes) = self.replace_chrome_urls(&new_content);
         new_content = transformed;
         changes.extend(url_changes);
+        
+        // 11. Convert long setTimeout/setInterval to chrome.alarms (background scripts only)
+        if path.to_string_lossy().contains("background") {
+            let (transformed, timer_changes) = self.convert_long_timers_to_alarms(&new_content);
+            new_content = transformed;
+            changes.extend(timer_changes);
+        }
         
         Ok(ModifiedFile {
             path: path.clone(),
@@ -145,6 +230,192 @@ impl JavaScriptTransformer {
     /// Get the collected executeScript calls for generating content.js listeners
     pub fn get_execute_script_calls(&self) -> &[ExecuteScriptCall] {
         &self.execute_script_calls
+    }
+    
+    /// Get detected global variables
+    pub fn get_global_variables(&self) -> &[GlobalVariable] {
+        &self.global_variables
+    }
+    
+    /// Detect global variables in background script
+    fn detect_global_variables(&self, content: &str) -> Vec<GlobalVariable> {
+        let mut variables = Vec::new();
+        
+        // Patterns for variable declarations at global scope
+        let var_patterns = vec![
+            (Regex::new(r"^\s*let\s+(\w+)\s*=").unwrap(), false),
+            (Regex::new(r"^\s*var\s+(\w+)\s*=").unwrap(), false),
+            (Regex::new(r"^\s*const\s+(\w+)\s*=").unwrap(), true),
+        ];
+        
+        // Track scope depth to only get globals
+        let mut brace_depth = 0;
+        
+        for (line_num, line) in content.lines().enumerate() {
+            // Check for variables BEFORE updating brace count for this line
+            // This ensures we capture variables declared at the start of a line
+            // even if the line contains opening braces
+            if brace_depth == 0 {
+                for (pattern, is_const) in &var_patterns {
+                    if let Some(cap) = pattern.captures(line) {
+                        if let Some(var_name) = cap.get(1) {
+                            let name = var_name.as_str().to_string();
+                            
+                            // Skip common patterns that shouldn't be persisted
+                            if should_persist_variable(&name) {
+                                variables.push(GlobalVariable {
+                                    name,
+                                    line: line_num + 1,
+                                    is_const: *is_const,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Track scope by counting braces
+            for ch in line.chars() {
+                match ch {
+                    '{' => brace_depth += 1,
+                    '}' => brace_depth -= 1,
+                    _ => {}
+                }
+            }
+        }
+        
+        variables
+    }
+    
+    /// Add variable persistence wrapper to background script
+    fn add_variable_persistence_wrapper(&self, content: &str) -> (String, Vec<FileChange>) {
+        let mut changes = Vec::new();
+        
+        // Include ALL global variables (const objects/arrays can have mutable contents)
+        let persist_vars: Vec<&GlobalVariable> = self.global_variables.iter().collect();
+        
+        if persist_vars.is_empty() {
+            return (content.to_string(), changes);
+        }
+        
+        let var_names: Vec<String> = persist_vars.iter()
+            .map(|v| format!("'{}'", v.name))
+            .collect();
+        
+        let var_list = persist_vars.iter()
+            .map(|v| v.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        
+        // Generate persistence code
+        let persistence_code = format!(r#"
+// === AUTO-GENERATED: Global Variable Persistence ===
+// Firefox event pages can be terminated, losing global variables.
+// This code automatically saves/restores them using browser.storage.local.
+
+const PERSIST_VARS = [{}];
+const PERSIST_KEY = '__bg_vars_persist__';
+
+// Restore variables on startup
+(async function restoreGlobalVars() {{
+    try {{
+        const stored = await browser.storage.local.get(PERSIST_KEY);
+        if (stored[PERSIST_KEY]) {{
+            const saved = stored[PERSIST_KEY];
+            console.log('🔄 Restoring global variables:', Object.keys(saved));
+            {}
+        }}
+    }} catch (error) {{
+        console.error('❌ Failed to restore global variables:', error);
+    }}
+}})();
+
+// Save variables periodically and on changes
+let saveTimeout;
+const SAVE_DEBOUNCE_MS = 1000; // Configurable debounce delay
+
+function saveGlobalVars(immediate = false) {{
+    if (saveTimeout) clearTimeout(saveTimeout);
+    
+    const doSave = async () => {{
+        try {{
+            const toSave = {{{}}};
+            await browser.storage.local.set({{ [PERSIST_KEY]: toSave }});
+            console.log('💾 Saved global variables');
+        }} catch (error) {{
+            console.error('❌ Failed to save global variables:', error);
+        }}
+    }};
+    
+    if (immediate) {{
+        doSave(); // Save immediately without debounce
+    }} else {{
+        saveTimeout = setTimeout(doSave, SAVE_DEBOUNCE_MS);
+    }}
+}}
+
+// Auto-save on window unload (event page termination)
+if (typeof window !== 'undefined') {{
+    window.addEventListener('unload', () => {{
+        // Synchronous save on unload
+        const toSave = {{{}}};
+        browser.storage.local.set({{ [PERSIST_KEY]: toSave }});
+    }});
+}}
+
+// Proxy wrapper to auto-save on modifications
+function createPersistentVar(varName, initialValue) {{
+    let value = initialValue;
+    return {{
+        get: () => value,
+        set: (newValue) => {{
+            value = newValue;
+            saveGlobalVars();
+            return value;
+        }}
+    }};
+}}
+
+// === END AUTO-GENERATED ===
+
+"#,
+            var_names.join(", "),
+            persist_vars.iter()
+                .map(|v| {
+                    if v.is_const {
+                        // For const, we deep-merge to preserve object/array contents
+                        format!("if (saved['{}'] !== undefined) {{ if (typeof {} === 'object') Object.assign({}, saved['{}']); }}",
+                            v.name, v.name, v.name, v.name)
+                    } else {
+                        // For let/var, direct assignment is fine
+                        format!("if (saved['{}'] !== undefined) {} = saved['{}'];", v.name, v.name, v.name)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n            "),
+            persist_vars.iter()
+                .map(|v| format!("{}: {}", v.name, v.name))
+                .collect::<Vec<_>>()
+                .join(", "),
+            persist_vars.iter()
+                .map(|v| format!("{}: {}", v.name, v.name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        
+        // Add at the beginning of the file (after any imports/polyfills)
+        let new_content = format!("{}\n{}", persistence_code, content);
+        
+        changes.push(FileChange {
+            line_number: 1,
+            change_type: ChangeType::Addition,
+            description: format!("Added automatic persistence for {} global variables: {}",
+                persist_vars.len(), var_list),
+            old_code: None,
+            new_code: Some("Global variable persistence wrapper".to_string()),
+        });
+        
+        (new_content, changes)
     }
     
     fn add_browser_polyfill(&self, content: &str) -> String {
@@ -1242,6 +1513,145 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {{
             })
             .collect::<Vec<_>>()
             .join("\n")
+    }
+    
+    /// Convert long setTimeout/setInterval to chrome.alarms
+    fn convert_long_timers_to_alarms(&mut self, content: &str) -> (String, Vec<FileChange>) {
+        let mut changes = Vec::new();
+        let mut result = content.to_string();
+        const LONG_DELAY_MS: u64 = 30000; // 30 seconds
+        
+        let mut timer_count = 0;
+        
+        // Convert setTimeout with delays > 30 seconds
+        for cap in SETTIMEOUT_PATTERN.captures_iter(content) {
+            if let (Some(callback), Some(delay_str)) = (cap.get(1), cap.get(2)) {
+                if let Ok(delay) = delay_str.as_str().parse::<u64>() {
+                    if delay > LONG_DELAY_MS {
+                        timer_count += 1;
+                        let alarm_name = format!("converted_timeout_{}", timer_count);
+                        let callback_code = callback.as_str().trim().to_string();
+                        
+                        // Create alarm setup code
+                        let alarm_code = format!(
+                            "browser.alarms.create('{}', {{ delayInMinutes: {} }})",
+                            alarm_name,
+                            delay as f64 / 60000.0
+                        );
+                        
+                        // Replace setTimeout with alarm creation
+                        result = result.replace(cap.get(0).unwrap().as_str(), &alarm_code);
+                        
+                        self.converted_timers.push(TimerConversion {
+                            alarm_name: alarm_name.clone(),
+                            original_delay_ms: delay,
+                            is_interval: false,
+                            callback_code,
+                        });
+                        
+                        changes.push(FileChange {
+                            line_number: 1, // Approximate
+                            change_type: ChangeType::Modification,
+                            description: format!(
+                                "Converted setTimeout({}ms) to browser.alarms (survives event page termination)",
+                                delay
+                            ),
+                            old_code: Some(cap.get(0).unwrap().as_str().to_string()),
+                            new_code: Some(alarm_code),
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Convert setInterval with delays > 30 seconds
+        for cap in SETINTERVAL_PATTERN.captures_iter(content) {
+            if let (Some(callback), Some(delay_str)) = (cap.get(1), cap.get(2)) {
+                if let Ok(delay) = delay_str.as_str().parse::<u64>() {
+                    if delay > LONG_DELAY_MS {
+                        timer_count += 1;
+                        let alarm_name = format!("converted_interval_{}", timer_count);
+                        let callback_code = callback.as_str().trim().to_string();
+                        
+                        // Create recurring alarm setup code
+                        let alarm_code = format!(
+                            "browser.alarms.create('{}', {{ periodInMinutes: {} }})",
+                            alarm_name,
+                            delay as f64 / 60000.0
+                        );
+                        
+                        // Replace setInterval with alarm creation
+                        result = result.replace(cap.get(0).unwrap().as_str(), &alarm_code);
+                        
+                        self.converted_timers.push(TimerConversion {
+                            alarm_name: alarm_name.clone(),
+                            original_delay_ms: delay,
+                            is_interval: true,
+                            callback_code,
+                        });
+                        
+                        changes.push(FileChange {
+                            line_number: 1, // Approximate
+                            change_type: ChangeType::Modification,
+                            description: format!(
+                                "Converted setInterval({}ms) to browser.alarms (survives event page termination)",
+                                delay
+                            ),
+                            old_code: Some(cap.get(0).unwrap().as_str().to_string()),
+                            new_code: Some(alarm_code),
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Add alarm listeners if any timers were converted
+        if !self.converted_timers.is_empty() {
+            let listener_code = self.generate_alarm_listeners();
+            result = format!("{}\n\n{}", result, listener_code);
+            
+            changes.push(FileChange {
+                line_number: 1,
+                change_type: ChangeType::Addition,
+                description: format!("Added browser.alarms listeners for {} converted timers", self.converted_timers.len()),
+                old_code: None,
+                new_code: Some("Alarm listeners for converted timers".to_string()),
+            });
+        }
+        
+        (result, changes)
+    }
+    
+    /// Generate alarm listener code for converted timers
+    fn generate_alarm_listeners(&self) -> String {
+        let mut code = String::new();
+        
+        code.push_str("// === AUTO-GENERATED: Alarm Listeners for Converted Timers ===\n");
+        code.push_str("// Long setTimeout/setInterval calls were converted to browser.alarms\n");
+        code.push_str("// to survive event page termination.\n\n");
+        
+        code.push_str("browser.alarms.onAlarm.addListener((alarm) => {\n");
+        
+        for timer in &self.converted_timers {
+            code.push_str(&format!("    if (alarm.name === '{}') {{\n", timer.alarm_name));
+            code.push_str(&format!("        // Original: {}(callback, {})\n",
+                if timer.is_interval { "setInterval" } else { "setTimeout" },
+                timer.original_delay_ms
+            ));
+            code.push_str(&format!("        const callback = {};\n", timer.callback_code));
+            code.push_str("        callback();\n");
+            
+            if !timer.is_interval {
+                code.push_str(&format!("        browser.alarms.clear('{}'); // One-time alarm\n", timer.alarm_name));
+            }
+            
+            code.push_str("    }\n");
+        }
+        
+        code.push_str("});\n\n");
+        code.push_str("// === END AUTO-GENERATED ===\n");
+        
+        code
     }
 }
 

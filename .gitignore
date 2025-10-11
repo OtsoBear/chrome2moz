@@ -19,13 +19,23 @@ Cargo.lock
 # Output directories from conversions
 converted-*/
 output/
+output[0-9]*/
+output.*
 *-output/
 *-test*/
 final-*/
 
-# Test artifacts
+# Test files and directories
+test-*.js
+test-*/
 *.test
 test-results/
+test-extension/
+test-extension-output/
+test-timers-ext/
+test-timers-output/
+final-test-output/
+*.xpi
 
 # Logs
 *.log
