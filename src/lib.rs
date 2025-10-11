@@ -12,6 +12,7 @@ pub mod validator;
 pub mod report;
 pub mod utils;
 pub mod scripts;
+pub mod cli;
 
 pub use models::{Extension, Manifest, ConversionContext, ConversionResult};
 pub use analyzer::analyze_extension;

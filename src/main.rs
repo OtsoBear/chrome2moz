@@ -2,6 +2,7 @@
 
 use chrome_to_firefox::{convert_extension, ConversionOptions, CalculatorType};
 use chrome_to_firefox::scripts::{fetch_chrome_only_apis, check_keyboard_shortcuts};
+use chrome_to_firefox::cli::run_interactive_mode;
 use clap::{Parser, Subcommand};
 use colored::*;
 use std::path::PathBuf;
@@ -12,7 +13,7 @@ use std::path::PathBuf;
 #[command(version)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -57,7 +58,19 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     
-    match cli.command {
+    // If no subcommand is provided, run interactive mode
+    let command = match cli.command {
+        Some(cmd) => cmd,
+        None => {
+            if let Err(e) = run_interactive_mode() {
+                eprintln!("{}", format!("Interactive mode error: {}", e).red());
+                std::process::exit(1);
+            }
+            return;
+        }
+    };
+    
+    match command {
         Commands::Convert { input, output, yes, report, preserve_chrome } => {
             println!("{}", "Chrome to Firefox Extension Converter".bold().blue());
             println!("{}", "=".repeat(50).blue());
