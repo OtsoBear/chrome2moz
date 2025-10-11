@@ -136,124 +136,58 @@ chrome2moz/
 
 ### High-Level Design
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Chrome2Moz System                           │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐        │
-│  │   CLI Tool   │    │  WASM Library │   │ Web Interface │        │
-│  │  (Terminal)  │    │   (Browser)   │   │  (GitHub Pages)│        │
-│  └──────┬───────┘    └──────┬────────┘   └──────┬────────┘        │
-│         │                   │                    │                 │
-│         └───────────────────┴────────────────────┘                 │
-│                             │                                       │
-│                  ┌──────────▼──────────┐                           │
-│                  │   Conversion Core   │                           │
-│                  └──────────┬──────────┘                           │
-│                             │                                       │
-├─────────────────────────────┼───────────────────────────────────────┤
-│                    Conversion Pipeline                              │
-├─────────────────────────────┼───────────────────────────────────────┤
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  1. INPUT: CRX/ZIP or Directory                 │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  2. EXTRACT: Unpack extension files             │            │
-│    │     • CRX signature parsing                     │            │
-│    │     • ZIP extraction                            │            │
-│    │     • File enumeration                          │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  3. PARSE: Read & deserialize files             │            │
-│    │     • manifest.json → Manifest struct           │            │
-│    │     • Identify JS/TS/HTML files                 │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  4. ANALYZE: Detect incompatibilities           │            │
-│    │     • Chrome-only APIs                          │            │
-│    │     • Manifest issues                           │            │
-│    │     • API usage patterns                        │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  5. TRANSFORM: Apply conversions                │            │
-│    │     ┌─────────────────────────────────────┐     │            │
-│    │     │ Manifest Transformer                │     │            │
-│    │     │  • Add browser_specific_settings    │     │            │
-│    │     │  • Restructure permissions          │     │            │
-│    │     │  • Add background.scripts            │     │            │
-│    │     └─────────────────────────────────────┘     │            │
-│    │     ┌─────────────────────────────────────┐     │            │
-│    │     │ JavaScript Transformer (AST-based)  │     │            │
-│    │     │  • Parse to AST with SWC            │     │            │
-│    │     │  • Scope analysis                   │     │            │
-│    │     │  • chrome → browser transformation  │     │            │
-│    │     │  • executeScript fixes              │     │            │
-│    │     │  • Callback → Promise conversion    │     │            │
-│    │     │  • URL replacement                  │     │            │
-│    │     │  • Generate code                    │     │            │
-│    │     └─────────────────────────────────────┘     │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  6. GENERATE: Create compatibility shims        │            │
-│    │     • browser-polyfill.js                       │            │
-│    │     • storage-session-compat.js                 │            │
-│    │     • sidepanel-compat.js                       │            │
-│    │     • [conditional based on usage]              │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  7. PACKAGE: Build output                       │            │
-│    │     • Copy all files                            │            │
-│    │     • Write transformed manifest                │            │
-│    │     • Inject shims                              │            │
-│    │     • Create XPI (optional)                     │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  8. REPORT: Generate analysis report            │            │
-│    │     • Markdown format                           │            │
-│    │     • Incompatibility details                   │            │
-│    │     • Statistics                                │            │
-│    │     • Manual action items                       │            │
-│    └────────────────────────┬────────────────────────┘            │
-│                             │                                       │
-│    ┌────────────────────────▼────────────────────────┐            │
-│    │  9. OUTPUT: Firefox-compatible extension        │            │
-│    │     • Directory structure                       │            │
-│    │     • XPI package (optional)                    │            │
-│    │     • Conversion report                         │            │
-│    └─────────────────────────────────────────────────┘            │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Interfaces["Chrome2Moz System"]
+        CLI[CLI Tool<br/>Terminal]
+        WASM[WASM Library<br/>Browser]
+        WEB[Web Interface<br/>GitHub Pages]
+    end
+    
+    CLI --> CORE[Conversion Core]
+    WASM --> CORE
+    WEB --> CORE
+    
+    subgraph Pipeline["Conversion Pipeline"]
+        CORE --> STEP1[1. INPUT<br/>CRX/ZIP or Directory]
+        STEP1 --> STEP2[2. EXTRACT<br/>• CRX signature parsing<br/>• ZIP extraction<br/>• File enumeration]
+        STEP2 --> STEP3[3. PARSE<br/>• manifest.json → Manifest struct<br/>• Identify JS/TS/HTML files]
+        STEP3 --> STEP4[4. ANALYZE<br/>• Chrome-only APIs<br/>• Manifest issues<br/>• API usage patterns]
+        STEP4 --> STEP5[5. TRANSFORM<br/>Apply conversions]
+        
+        subgraph Transform["Transformation Details"]
+            MANIFEST[Manifest Transformer<br/>• browser_specific_settings<br/>• Restructure permissions<br/>• background.scripts]
+            JS[JavaScript Transformer<br/>• Parse to AST with SWC<br/>• Scope analysis<br/>• chrome → browser<br/>• executeScript fixes<br/>• Callback → Promise<br/>• URL replacement<br/>• Generate code]
+        end
+        
+        STEP5 --> Transform
+        Transform --> STEP6[6. GENERATE<br/>Compatibility shims<br/>• browser-polyfill.js<br/>• storage-session-compat.js<br/>• sidepanel-compat.js]
+        STEP6 --> STEP7[7. PACKAGE<br/>Build output<br/>• Copy all files<br/>• Write manifest<br/>• Inject shims<br/>• Create XPI]
+        STEP7 --> STEP8[8. REPORT<br/>Generate analysis<br/>• Markdown format<br/>• Incompatibilities<br/>• Statistics<br/>• Manual actions]
+        STEP8 --> STEP9[9. OUTPUT<br/>Firefox extension<br/>• Directory structure<br/>• XPI package<br/>• Conversion report]
+    end
+    
+    style CORE fill:#4a9eff
+    style STEP5 fill:#ff9a4a
+    style STEP9 fill:#4aff9a
 ```
 
 ### Data Flow
 
-```
-Input Extension
-      ↓
-  [Extract]  ─────→ Files: Vec<(PathBuf, Vec<u8>)>
-      ↓
-   [Parse]   ─────→ Manifest + Extension structs
-      ↓
-  [Analyze]  ─────→ Vec<Incompatibility>
-      ↓
-[Transform]  ─────→ Modified Manifest + Modified Files
-      ↓
- [Generate]  ─────→ Shim files added
-      ↓
-  [Package]  ─────→ Output directory + XPI
-      ↓
-  [Report]   ─────→ Markdown report
-      ↓
-Firefox Extension
+```mermaid
+flowchart TD
+    A[Input Extension] --> B[Extract]
+    B -->|Files: Vec PathBuf, Vec u8| C[Parse]
+    C -->|Manifest + Extension structs| D[Analyze]
+    D -->|Vec Incompatibility| E[Transform]
+    E -->|Modified Manifest + Modified Files| F[Generate]
+    F -->|Shim files added| G[Package]
+    G -->|Output directory + XPI| H[Report]
+    H -->|Markdown report| I[Firefox Extension]
+    
+    style A fill:#e1f5ff
+    style I fill:#c8e6c9
+    style E fill:#fff3e0
 ```
 
 ---
@@ -585,23 +519,27 @@ The heart of Chrome2Moz - a sophisticated multi-phase AST transformation system.
 
 ### Architecture
 
-```
-JavaScript File
-      ↓
-  [Parser] ────→ AST (Abstract Syntax Tree)
-      ↓
-[Module Detector] ────→ ESM / CommonJS / Script
-      ↓
-[Scope Analyzer] ────→ Variable binding table
-      ↓
-[Visitor Transforms] ────→ Modified AST
-  • ChromeTransformVisitor (chrome → browser)
-  • ExecuteScriptTransformer (function → func)
-  • CallbackTransformer (callbacks → promises)
-      ↓
-[Polyfill Injector] ────→ Add import/require
-      ↓
-  [Code Generator] ────→ Transformed JavaScript
+```mermaid
+flowchart TD
+    A[JavaScript File] --> B[Parser]
+    B -->|AST Abstract Syntax Tree| C[Module Detector]
+    C -->|ESM / CommonJS / Script| D[Scope Analyzer]
+    D -->|Variable binding table| E[Visitor Transforms]
+    
+    subgraph Visitors["AST Visitors"]
+        V1[ChromeTransformVisitor<br/>chrome → browser]
+        V2[ExecuteScriptTransformer<br/>function → func]
+        V3[CallbackTransformer<br/>callbacks → promises]
+    end
+    
+    E --> Visitors
+    Visitors -->|Modified AST| F[Polyfill Injector]
+    F -->|Add import/require| G[Code Generator]
+    G --> H[Transformed JavaScript]
+    
+    style A fill:#e3f2fd
+    style H fill:#c8e6c9
+    style E fill:#fff3e0
 ```
 
 ### Components
@@ -1064,34 +1002,37 @@ Dynamic compatibility layer generation based on detected API usage.
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Shim Selection Logic                    │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Code Analysis → Detect API Usage → Select Shims           │
-│                                                             │
-│  ┌───────────────────────────────────────────────────┐    │
-│  │  Always Included:                                  │    │
-│  │  • browser-polyfill.js (if chrome.* detected)     │    │
-│  └───────────────────────────────────────────────────┘    │
-│                                                             │
-│  ┌───────────────────────────────────────────────────┐    │
-│  │  Conditionally Included:                           │    │
-│  │  • storage-session-compat.js (storage.session)    │    │
-│  │  • sidepanel-compat.js (sidePanel API)            │    │
-│  │  • declarative-net-request-stub.js (DNR API)      │    │
-│  │  • user-scripts-compat.js (userScripts API)       │    │
-│  │  • tabs-windows-compat.js (deprecated APIs)       │    │
-│  │  • runtime-compat.js (chrome-specific methods)    │    │
-│  │  • downloads-compat.js (download extensions)      │    │
-│  │  • privacy-stub.js (privacy API)                  │    │
-│  │  • notifications-compat.js (extended features)    │    │
-│  │  • action-compat.js (action/browser_action)       │    │
-│  │  • promise-wrapper.js (callback APIs)             │    │
-│  └───────────────────────────────────────────────────┘    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Code Analysis] --> B[Detect API Usage]
+    B --> C{Shim Selection}
+    
+    C -->|Always if chrome.* found| D[browser-polyfill.js]
+    
+    C -->|Conditional| E[Conditional Shims]
+    
+    subgraph Conditional["Conditionally Included Shims"]
+        E1[storage-session-compat.js<br/>storage.session]
+        E2[sidepanel-compat.js<br/>sidePanel API]
+        E3[declarative-net-request-stub.js<br/>DNR API]
+        E4[user-scripts-compat.js<br/>userScripts API]
+        E5[tabs-windows-compat.js<br/>deprecated APIs]
+        E6[runtime-compat.js<br/>chrome-specific methods]
+        E7[downloads-compat.js<br/>download extensions]
+        E8[privacy-stub.js<br/>privacy API]
+        E9[notifications-compat.js<br/>extended features]
+        E10[action-compat.js<br/>action/browser_action]
+        E11[promise-wrapper.js<br/>callback APIs]
+    end
+    
+    E --> Conditional
+    
+    D --> F[Selected Shims]
+    Conditional --> F
+    
+    style A fill:#e3f2fd
+    style C fill:#fff3e0
+    style F fill:#c8e6c9
 ```
 
 ### Core Shims
@@ -1528,91 +1469,112 @@ pub fn restructure_permissions(manifest: &mut Manifest) {
 
 ### Dependency Graph
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        main.rs (CLI)                        │
-│                   ┌──────────┴──────────┐                   │
-│                   │                     │                   │
-│            ┌──────▼──────┐      ┌──────▼──────┐            │
-│            │   convert   │      │   analyze   │            │
-│            └──────┬──────┘      └──────┬──────┘            │
-│                   │                     │                   │
-└───────────────────┼─────────────────────┼───────────────────┘
-                    │                     │
-        ┌───────────▼─────────────────────▼──────────────┐
-        │          Conversion Pipeline                    │
-        └───────────┬─────────────────────┬───────────────┘
-                    │                     │
-        ┌───────────▼──────┐  ┌──────────▼──────────┐
-        │     Packager      │  │      Analyzer       │
-        │   - Extractor     │  │    - API Check      │
-        │   - Builder       │  │  - Manifest Check   │
-        └───────────┬───────┘  └──────────┬──────────┘
-                    │                      │
-        ┌───────────▼──────────────────────▼──────────┐
-        │              Parser                          │
-        │     - Manifest    - JavaScript              │
-        └───────────┬──────────────────────┬──────────┘
-                    │                      │
-        ┌───────────▼──────┐  ┌───────────▼──────────┐
-        │    Transformer    │  │       Models         │
-        │  - Manifest       │  │   - Extension        │
-        │  - JavaScript     │  │   - Manifest         │
-        │  - Shims          │  │   - Incompatibility  │
-        │        │          │  └──────────────────────┘
-        │  ┌─────▼─────┐   │
-        │  │AST System │   │
-        │  │ - Parser  │   │
-        │  │ - Visitor │   │
-        │  │ - Scope   │   │
-        │  │ - Codegen │   │
-        │  └───────────┘   │
-        └──────────────────┘
+```mermaid
+graph TD
+    MAIN[main.rs CLI]
+    
+    MAIN --> CONVERT[convert command]
+    MAIN --> ANALYZE[analyze command]
+    
+    CONVERT --> PIPELINE[Conversion Pipeline]
+    ANALYZE --> PIPELINE
+    
+    PIPELINE --> PACKAGER[Packager]
+    PIPELINE --> ANALYZER[Analyzer]
+    
+    subgraph PackagerModule["Packager Module"]
+        EXTRACTOR[Extractor]
+        BUILDER[Builder]
+    end
+    
+    subgraph AnalyzerModule["Analyzer Module"]
+        APICHECK[API Check]
+        MANIFESTCHECK[Manifest Check]
+    end
+    
+    PACKAGER --> PackagerModule
+    ANALYZER --> AnalyzerModule
+    
+    PackagerModule --> PARSER[Parser]
+    AnalyzerModule --> PARSER
+    
+    subgraph ParserModule["Parser Module"]
+        PMANIFEST[Manifest Parser]
+        PJS[JavaScript Parser]
+    end
+    
+    PARSER --> ParserModule
+    
+    ParserModule --> TRANSFORMER[Transformer]
+    ParserModule --> MODELS[Models]
+    
+    subgraph TransformerModule["Transformer Module"]
+        TMANIFEST[Manifest Transformer]
+        TJS[JavaScript Transformer]
+        SHIMS[Shims Generator]
+    end
+    
+    TRANSFORMER --> TransformerModule
+    
+    subgraph ModelsModule["Models Module"]
+        MEXT[Extension]
+        MMAN[Manifest]
+        MINC[Incompatibility]
+    end
+    
+    MODELS --> ModelsModule
+    
+    subgraph ASTSystem["AST System"]
+        ASTPARSER[Parser]
+        ASTVISITOR[Visitor]
+        ASTSCOPE[Scope]
+        ASTCODEGEN[Codegen]
+    end
+    
+    TJS --> ASTSystem
+    
+    style MAIN fill:#4a9eff
+    style PIPELINE fill:#ff9a4a
+    style ASTSystem fill:#c8e6c9
 ```
 
 ### Execution Flow
 
-```
-User Command (CLI)
-      ↓
-main.rs: parse arguments
-      ↓
-match command {
-    "convert" → {
-        ↓
-        Packager::extract_extension()
-        ↓
-        Parser::parse_manifest()
-        ↓
-        Analyzer::analyze()
-        ↓
-        Transformer::transform_manifest()
-        ↓
-        Transformer::transform_javascript()
-            ↓
-            AST::parse() → AST::transform() → AST::generate()
-        ↓
-        Transformer::generate_shims()
-        ↓
-        Packager::build_extension()
-        ↓
-        Report::generate()
-        ↓
-        Output results
-    }
-    "analyze" → {
-        ↓
-        Packager::extract_extension()
-        ↓
-        Parser::parse_manifest()
-        ↓
-        Analyzer::analyze()
-        ↓
-        Report::generate()
-        ↓
-        Output report only
-    }
-}
+```mermaid
+flowchart TD
+    START[User Command CLI] --> PARSE[main.rs: parse arguments]
+    PARSE --> MATCH{match command}
+    
+    MATCH -->|convert| C1[Packager::extract_extension]
+    C1 --> C2[Parser::parse_manifest]
+    C2 --> C3[Analyzer::analyze]
+    C3 --> C4[Transformer::transform_manifest]
+    C4 --> C5[Transformer::transform_javascript]
+    
+    subgraph AST["AST Pipeline"]
+        A1[AST::parse]
+        A2[AST::transform]
+        A3[AST::generate]
+        A1 --> A2 --> A3
+    end
+    
+    C5 --> AST
+    AST --> C6[Transformer::generate_shims]
+    C6 --> C7[Packager::build_extension]
+    C7 --> C8[Report::generate]
+    C8 --> C9[Output results]
+    
+    MATCH -->|analyze| A1_[Packager::extract_extension]
+    A1_ --> A2_[Parser::parse_manifest]
+    A2_ --> A3_[Analyzer::analyze]
+    A3_ --> A4_[Report::generate]
+    A4_ --> A5_[Output report only]
+    
+    style START fill:#e3f2fd
+    style MATCH fill:#fff3e0
+    style C9 fill:#c8e6c9
+    style A5_ fill:#c8e6c9
+    style AST fill:#ffe0b2
 ```
 
 ---
