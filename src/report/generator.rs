@@ -105,23 +105,38 @@ pub fn generate_markdown_report(result: &ConversionResult) -> Result<String> {
                 report.push_str("- Reloads on extension startup or API events\n\n");
                 
                 report.push_str("**WHAT COULD BREAK:**\n");
-                report.push_str("- ❌ Global variables (lost when script is terminated)\n");
-                report.push_str("- ❌ setTimeout/setInterval with long delays (>30s)\n");
                 report.push_str("- ❌ Assumptions about always-running background script\n");
-                report.push_str("- ❌ In-memory caches that aren't persisted\n\n");
+                report.push_str("- ❌ Complex in-memory state not using global variables\n\n");
                 
-                report.push_str("**WHAT STILL WORKS:**\n");
+                report.push_str("**WHAT WORKS AUTOMATICALLY:**\n");
+                report.push_str("- ✅ Global variables (auto-persisted with browser.storage.local)\n");
+                report.push_str("- ✅ Long timers (setTimeout/setInterval >30s converted to browser.alarms)\n");
                 report.push_str("- ✅ Event listeners (runtime.onMessage, tabs.onUpdated, etc.)\n");
                 report.push_str("- ✅ chrome.alarms for scheduled/recurring tasks\n");
                 report.push_str("- ✅ chrome.storage for persisting data\n");
                 report.push_str("- ✅ Message passing between scripts\n");
                 report.push_str("- ✅ Short-lived operations and immediate responses\n\n");
                 
+                report.push_str("**AUTO-GENERATED FEATURES:**\n\n");
+                
+                report.push_str("📦 **Global Variable Persistence:**\n");
+                report.push_str("- Automatically detects global variables in background scripts\n");
+                report.push_str("- Generates code to save/restore them using browser.storage.local\n");
+                report.push_str("- Variables are restored on event page startup\n");
+                report.push_str("- Auto-saves on changes (1-second debounce)\n");
+                report.push_str("- Saves immediately on page termination\n\n");
+                
+                report.push_str("⏰ **Long Timer Conversion:**\n");
+                report.push_str("- setTimeout/setInterval with delays >30 seconds automatically converted\n");
+                report.push_str("- Converted to browser.alarms API (survives termination)\n");
+                report.push_str("- Generates alarm listeners to execute original callback code\n");
+                report.push_str("- Short timers (<30s) remain unchanged\n\n");
+                
                 report.push_str("**ACTION REQUIRED:**\n");
-                report.push_str("- Test timer-based features thoroughly\n");
-                report.push_str("- Verify data persistence across browser restarts\n");
+                report.push_str("- Test timer-based features thoroughly (use chrome.alarms for long delays)\n");
+                report.push_str("- Verify data persistence works across browser restarts\n");
                 report.push_str("- Check that message listeners respond correctly\n");
-                report.push_str("- Replace global state with chrome.storage if needed\n\n");
+                report.push_str("- Review console logs for global variable save/restore operations\n\n");
             } else if warning.contains("extension ID") || warning.contains("default extension ID") {
                 report.push_str("\n**Extension ID Information:**\n");
                 report.push_str("- Firefox requires a unique extension ID for AMO submission\n");
