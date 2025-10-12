@@ -24,6 +24,23 @@ A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically 
 - **WebAssembly UI**: Browser-based interface (no installation required)
 - **XPI Packaging**: Ready-to-install Firefox extension packages
 
+## Chrome API Coverage
+
+![API Coverage](https://img.shields.io/badge/Chrome--Only%20APIs-176%20tracked-blue)
+![Implemented](https://img.shields.io/badge/Implemented-58%20(33%25)-success)
+![Not Implemented](https://img.shields.io/badge/Not%20Implemented-118%20(67%25)-yellow)
+
+**Chrome-only APIs**: APIs that work in Chrome but not in Firefox
+**Implementation Status**: Automatic conversion support via converters and shims
+
+- ✅ **58 APIs with automatic conversion** - Including full `declarativeNetRequest`, `sidePanel`, `storage.session`, and legacy API support
+- ⏳ **118 APIs detected but not yet converted** - Mostly devtools, privacy, and notifications extended features
+- 🔍 **176 total Chrome-only APIs tracked** - Based on [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data)
+
+**[📊 View Detailed API Status →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**
+
+Run `cargo run chrome-only-apis` to fetch the latest Chrome-only API list and check implementation status.
+
 ## Quick Start
 
 ### Web UI (Recommended)
@@ -106,18 +123,26 @@ For errors, check Browser Console (Ctrl+Shift+J).
 
 **Chrome-Only APIs:**
 
-**Automatic Conversion Provided:**
-- `chrome.offscreen.*` - Converted to Web Workers, Content Scripts, or Background Script integrations based on usage analysis
-- `chrome.declarativeContent.*` - Converted to content script + messaging patterns
+See **[📊 Chrome API Implementation Status](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)** for the complete list of 176 Chrome-only APIs and their implementation status.
 
-**Stub Only (No Firefox Equivalent):**
-- `chrome.tabGroups.*` - Tab grouping API (stub provided to prevent crashes, but no actual functionality)
+**Fully Implemented (Automatic Conversion):**
+- ✅ `chrome.offscreen.*` - Converted to Web Workers, Content Scripts, or Background Script integrations
+- ✅ `chrome.declarativeContent.*` - Converted to content script + messaging patterns
+- ✅ `chrome.declarativeNetRequest.*` - Full converter to Firefox `webRequest` API (46 APIs)
+- ✅ `chrome.sidePanel.*` - Maps to Firefox `sidebarAction` with compatibility layer (10 APIs)
+- ✅ `chrome.storage.session` - In-memory polyfill using JavaScript Map
+- ✅ `chrome.userScripts.*` - Falls back to `contentScripts.register()`
+- ✅ Legacy APIs - `tabs.getSelected`, `tabs.getAllInWindow`, etc.
 
-**Partial Support (Shims/Alternatives Provided):**
-- `chrome.sidePanel.*` → Firefox `sidebarAction` (different UI placement)
-- `chrome.declarativeNetRequest.*` → Stub with migration guidance to `webRequest`
-- `chrome.storage.session` → In-memory polyfill (data lost on restart)
-- `chrome.userScripts.*` → Maps to Firefox `contentScripts.register()`
+**Stub/No-Op (No Firefox Equivalent):**
+- ⚠️ `chrome.tabGroups.*` - Stub provided (Firefox doesn't support tab grouping)
+- ⚠️ `chrome.action.openPopup` - Not available in Firefox
+
+**Not Yet Implemented (118 APIs):**
+- Most `devtools.*` extended features (19 APIs)
+- Extended `notifications.*` options (11 APIs)
+- `privacy.*` settings (12 APIs)
+- Various extended features in `tabs`, `downloads`, `runtime`, etc.
 
 **Important Differences:**
 - **Service Workers**: Converted to event pages (Firefox background scripts)
