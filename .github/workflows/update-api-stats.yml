@@ -2,7 +2,7 @@ name: Update API Coverage Stats
 
 on:
   schedule:
-    - cron: '0 0 * * 1'  # Weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'  # Weekly on Mondays
   workflow_dispatch:
   push:
     branches: [main]
@@ -26,63 +26,90 @@ jobs:
         with:
           toolchain: stable
           
-      - name: Build project
+      - name: Build
         run: cargo build --release --features cli
         
-      - name: Run stats update script
-        id: update_stats
+      - name: Fetch stats
+        id: stats
         run: |
-          chmod +x .github/scripts/update-stats.sh
-          .github/scripts/update-stats.sh
+          set -e
+          OUTPUT=$(cargo run --release chrome-only-apis 2>&1)
+          echo "$OUTPUT"
           
-      - name: Check for changes
-        id: check_changes
-        run: |
-          if git diff --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No changes detected"
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected"
+          TOTAL=$(echo "$OUTPUT" | grep -oP 'Total Chrome-only APIs.*?: \K\d+' || echo "0")
+          IMPL=$(echo "$OUTPUT" | grep -oP 'Implemented.*?: \K\d+' || echo "0")
+          NOT_IMPL=$(echo "$OUTPUT" | grep -oP 'Not yet implemented.*?: \K\d+' || echo "0")
+          PCT=$(echo "$OUTPUT" | grep -oP 'Implementation coverage.*?: \K\d+' || echo "0")
+          
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "Error: Failed to extract stats"
+            exit 1
           fi
           
-      - name: Commit and push
-        if: steps.check_changes.outputs.has_changes == 'true'
+          if [ "$PCT" -eq 0 ] && [ "$TOTAL" -gt 0 ]; then
+            PCT=$(( (IMPL * 100) / TOTAL ))
+          fi
+          
+          NOT_PCT=$(( 100 - PCT ))
+          
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "impl=$IMPL" >> $GITHUB_OUTPUT
+          echo "not_impl=$NOT_IMPL" >> $GITHUB_OUTPUT
+          echo "pct=$PCT" >> $GITHUB_OUTPUT
+          echo "not_pct=$NOT_PCT" >> $GITHUB_OUTPUT
+          
+          echo "Stats: $IMPL/$TOTAL ($PCT%)"
+          
+      - name: Update README
+        run: |
+          T="${{ steps.stats.outputs.total }}"
+          I="${{ steps.stats.outputs.impl }}"
+          N="${{ steps.stats.outputs.not_impl }}"
+          P="${{ steps.stats.outputs.pct }}"
+          NP="${{ steps.stats.outputs.not_pct }}"
+          
+          sed -i "s|progress-bar.xyz/[0-9]\\+/|progress-bar.xyz/${P}/|g" README.md
+          sed -i "s|\\*\\*[0-9]\\+ of [0-9]\\+ Chrome-only APIs|**${I} of ${T} Chrome-only APIs|g" README.md
+          sed -i "s|\\*\\*Total Tracked\\*\\* | [0-9]\\+|**Total Tracked** \\| ${T}|g" README.md
+          sed -i "s|\\*\\*Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)|**Implemented** \\| ${I} (${P}%)|g" README.md
+          sed -i "s|\\*\\*Not Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)|**Not Implemented** \\| ${N} (${NP}%)|g" README.md
+          
+      - name: Update status doc
+        run: |
+          T="${{ steps.stats.outputs.total }}"
+          I="${{ steps.stats.outputs.impl }}"
+          N="${{ steps.stats.outputs.not_impl }}"
+          P="${{ steps.stats.outputs.pct }}"
+          NP="${{ steps.stats.outputs.not_pct }}"
+          
+          sed -i "s|> \\*\\*Summary\\*\\*: [0-9]\\+ Chrome-only APIs detected | [0-9]\\+ Implemented ([0-9]\\+%) | [0-9]\\+ Not Implemented ([0-9]\\+%)|> **Summary**: ${T} Chrome-only APIs detected \\| ${I} Implemented (${P}%) \\| ${N} Not Implemented (${NP}%)|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|\\*\\*Total Chrome-Only APIs\\*\\* | [0-9]\\+ | 100%|**Total Chrome-Only APIs** \\| ${T} \\| 100%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|\\*\\*Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%|**Implemented** \\| ${I} \\| ${P}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|\\*\\*Not Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%|**Not Implemented** \\| ${N} \\| ${NP}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          
+      - name: Commit
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add README.md CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
-          git commit -m "chore: update Chrome API coverage stats [skip ci]" \
-            -m "Total: ${{ steps.update_stats.outputs.total }}" \
-            -m "Implemented: ${{ steps.update_stats.outputs.implemented }} (${{ steps.update_stats.outputs.percentage }}%)" \
-            -m "Auto-updated by GitHub Actions"
-          git push
           
-      - name: Create job summary
+          if ! git diff --quiet; then
+            git add README.md CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+            git commit -m "chore: update API stats [skip ci]" \
+              -m "Stats: ${{ steps.stats.outputs.impl }}/${{ steps.stats.outputs.total }} (${{ steps.stats.outputs.pct }}%)"
+            git push
+          fi
+          
+      - name: Summary
         if: always()
         run: |
-          if [[ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]]; then
-            cat >> $GITHUB_STEP_SUMMARY << EOF
-          ## 📊 Chrome API Coverage Update
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📊 Chrome API Coverage
           
-          ![Progress](https://progress-bar.xyz/${{ steps.update_stats.outputs.percentage }}/?scale=100&title=Coverage&width=400&color=00d1b2&suffix=%25)
+          ![Progress](https://progress-bar.xyz/${{ steps.stats.outputs.pct }}/?scale=100&width=400)
           
           | Metric | Value |
           |--------|-------|
-          | **Total APIs** | ${{ steps.update_stats.outputs.total }} |
-          | **Implemented** | ${{ steps.update_stats.outputs.implemented }} (${{ steps.update_stats.outputs.percentage }}%) |
-          | **Not Implemented** | ${{ steps.update_stats.outputs.not_implemented }} |
-          
-          ✅ Stats updated and committed successfully
-          
-          Updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          | Total | ${{ steps.stats.outputs.total }} |
+          | Implemented | ${{ steps.stats.outputs.impl }} (${{ steps.stats.outputs.pct }}%) |
+          | Not Implemented | ${{ steps.stats.outputs.not_impl }} |
           EOF
-          else
-            cat >> $GITHUB_STEP_SUMMARY << EOF
-          ## 📊 Chrome API Coverage Check
-          
-          No changes detected - stats are already up to date.
-          
-          Checked: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          EOF
-          fi
