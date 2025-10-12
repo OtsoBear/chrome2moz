@@ -6,7 +6,7 @@
 //! - Smart polyfill injection
 //! - Scope analysis with transformations
 
-use chrome_to_firefox::transformer::ast::*;
+use chrome2moz::transformer::ast::*;
 use std::path::Path;
 use swc_core::common::GLOBALS;
 

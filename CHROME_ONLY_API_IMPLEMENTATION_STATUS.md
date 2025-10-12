@@ -1,8 +1,8 @@
 # Chrome-Only API Implementation Status
 
-> **Last Updated**: Based on [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data)
-> 
-> **Summary**: 176 Chrome-only APIs detected | 58 Implemented (33%) | 118 Not Implemented (67%)
+> **Last Updated**: Based on [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data) + additional APIs we track
+>
+> **Summary**: 179 Chrome-only APIs detected | 61 Implemented (34%) | 118 Not Implemented (66%)
 
 This document tracks WebExtension APIs that are supported in Chrome but not in Firefox, along with their implementation status in this converter tool.
 
@@ -10,9 +10,11 @@ This document tracks WebExtension APIs that are supported in Chrome but not in F
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| **Total Chrome-Only APIs** | 176 | 100% |
-| **✅ Implemented** | 58 | 33% |
-| **⏳ Not Implemented** | 118 | 67% |
+| **Total Chrome-Only APIs** | 179 | 100% |
+| **✅ Implemented** | 61 | 34% |
+| **⏳ Not Implemented** | 118 | 66% |
+
+**Note**: Total includes 176 APIs from MDN data + 3 additional APIs we've implemented that aren't yet in MDN's dataset (`chrome.offscreen`, `chrome.declarativeContent`, `chrome.action.openPopup`).
 
 ## 🎯 Implementation Categories
 

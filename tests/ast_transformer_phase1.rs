@@ -2,7 +2,7 @@
 //!
 //! Tests the core functionality: parsing, code generation, and basic transformations
 
-use chrome_to_firefox::transformer::ast::{AstParser, CodeGenerator, ChromeTransformVisitor};
+use chrome2moz::transformer::ast::{AstParser, CodeGenerator, ChromeTransformVisitor};
 use swc_core::ecma::visit::VisitMutWith;
 use std::path::Path;
 
@@ -259,7 +259,7 @@ fn test_error_recovery_invalid_syntax() {
 
 #[test]
 fn test_full_ast_transformer_integration() {
-    use chrome_to_firefox::transformer::ast::AstTransformer;
+    use chrome2moz::transformer::ast::AstTransformer;
     
     let mut transformer = AstTransformer::new();
     let code = "chrome.runtime.id; const x: string = 'test';";

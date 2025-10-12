@@ -26,20 +26,30 @@ A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically 
 
 ## Chrome API Coverage
 
-![API Coverage](https://img.shields.io/badge/Chrome--Only%20APIs-176%20tracked-blue)
-![Implemented](https://img.shields.io/badge/Implemented-58%20(33%25)-success)
-![Not Implemented](https://img.shields.io/badge/Not%20Implemented-118%20(67%25)-yellow)
+### 📊 Implementation Progress
 
-**Chrome-only APIs**: APIs that work in Chrome but not in Firefox
-**Implementation Status**: Automatic conversion support via converters and shims
+![API Implementation Progress](https://progress-bar.xyz/34/?scale=100&title=API%20Coverage&width=500&color=00d1b2&suffix=%25)
 
-- ✅ **58 APIs with automatic conversion** - Including full `declarativeNetRequest`, `sidePanel`, `storage.session`, and legacy API support
-- ⏳ **118 APIs detected but not yet converted** - Mostly devtools, privacy, and notifications extended features
-- 🔍 **176 total Chrome-only APIs tracked** - Based on [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data)
+**61 of 179 Chrome-only APIs** have automatic conversion support
 
-**[📊 View Detailed API Status →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**
+| Category | Count | Status |
+|----------|-------|--------|
+| 🔍 **Total Tracked** | 179 | APIs supported in Chrome but not Firefox |
+| ✅ **Implemented** | 61 (34%) | Automatic conversion with shims/converters |
+| ⏳ **Not Implemented** | 118 (66%) | Detection only, no conversion yet |
 
-Run `cargo run chrome-only-apis` to fetch the latest Chrome-only API list and check implementation status.
+### 🎯 Top Implemented Categories
+
+| API Category | Coverage | APIs |
+|--------------|----------|------|
+| **declarativeNetRequest** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 46/46 Full webRequest converter |
+| **sidePanel** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 10/10 Firefox sidebarAction adapter |
+| **storage.session** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 1/1 In-memory polyfill |
+| **Legacy APIs** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 3/3 Compatibility wrappers |
+
+**[📊 View Full API Status & Breakdown →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**
+
+> 💡 **Tip**: Run `cargo run chrome-only-apis` to fetch the latest Chrome-only API list from MDN and check current implementation status.
 
 ## Quick Start
 

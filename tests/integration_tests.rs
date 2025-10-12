@@ -3,7 +3,7 @@
 //! These tests use real Chrome extension examples and validate output
 //! using Mozilla's addons-linter.
 
-use chrome_to_firefox::{convert_extension, ConversionOptions, CalculatorType};
+use chrome2moz::{convert_extension, ConversionOptions, CalculatorType};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;

@@ -3,7 +3,7 @@
 //! Tests the transformation of chrome.scripting.executeScript calls
 //! into proper message passing between background and content scripts.
 
-use chrome_to_firefox::transformer::javascript::JavaScriptTransformer;
+use chrome2moz::transformer::javascript::JavaScriptTransformer;
 use std::path::PathBuf;
 
 #[test]

@@ -1,6 +1,6 @@
 //! Tests for executeScript function → func transformation
 
-use chrome_to_firefox::transformer::ast::{AstParser, CodeGenerator, ExecuteScriptTransformer};
+use chrome2moz::transformer::ast::{AstParser, CodeGenerator, ExecuteScriptTransformer};
 use std::path::Path;
 use swc_core::common::GLOBALS;
 use swc_core::ecma::visit::VisitMutWith;

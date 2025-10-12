@@ -100,8 +100,8 @@ web/
 ├── styles.css         # Styling
 ├── app.js            # Frontend JavaScript
 └── pkg/              # Generated WASM files (after build)
-    ├── chrome_to_firefox.js
-    ├── chrome_to_firefox_bg.wasm
+    ├── chrome2moz.js
+    ├── chrome2moz_bg.wasm
     └── ...
 ```
 

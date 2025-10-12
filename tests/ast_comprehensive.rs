@@ -2,7 +2,7 @@
 //! 
 //! Tests edge cases, real-world scenarios, and transformation accuracy
 
-use chrome_to_firefox::transformer::javascript::JavaScriptTransformer;
+use chrome2moz::transformer::javascript::JavaScriptTransformer;
 use std::path::PathBuf;
 
 #[test]

@@ -81,34 +81,48 @@ pub async fn run() -> Result<()> {
         println!("    Firefox: {}\n", format_version(&entry.firefox_info));
     }
 
-    println!("Summary:");
-    println!("  Total Chrome-only APIs found: {}", sorted_results.len());
-    println!("  Implemented (matches parser/javascript.rs): {}", implemented_count);
-    println!("  Not yet implemented: {}", not_implemented_count);
-
     let missing_prefixes: Vec<&str> = CHROME_ONLY_APIS
         .iter()
         .copied()
         .filter(|prefix| !matched_prefixes.contains(prefix))
         .collect();
+    
+    // Add missing prefixes to total count (APIs we've implemented but MDN doesn't track)
+    let total_apis = sorted_results.len() + missing_prefixes.len();
+    let total_implemented = implemented_count + missing_prefixes.len();
+    let implementation_percentage = if total_apis > 0 {
+        (total_implemented * 100) / total_apis
+    } else {
+        0
+    };
 
+    println!("Summary:");
+    println!("  Total Chrome-only APIs (including MDN + our implementations): {}", total_apis);
+    println!("  - APIs from MDN dataset: {}", sorted_results.len());
+    println!("  - Additional APIs we track (not in MDN): {}", missing_prefixes.len());
+    println!();
+    println!("  Implemented (with converters/shims): {}", total_implemented);
+    println!("  - Matching MDN APIs: {}", implemented_count);
+    println!("  - Our additional implementations: {}", missing_prefixes.len());
+    println!();
+    println!("  Not yet implemented: {}", not_implemented_count);
+    println!("  Implementation coverage: {}%", implementation_percentage);
+    println!();
     println!(
-        "  Known chrome-only prefixes tracked: {}",
+        "  Known chrome-only prefixes tracked in code: {}",
         CHROME_ONLY_APIS.len()
-    );
-    println!(
-        "  Known prefixes missing from MDN dataset: {}",
-        missing_prefixes.len()
     );
 
     if !missing_prefixes.is_empty() {
-        println!("    Missing prefixes:");
-        for prefix in missing_prefixes {
-            println!("      - {}", prefix);
+        println!();
+        println!("  APIs we've implemented but not found in MDN dataset:");
+        for prefix in &missing_prefixes {
+            println!("    - {}", prefix);
         }
+        println!("  (These are newer or undocumented Chrome APIs)");
     }
 
-    println!("");
+    println!();
     println!("Use this summary to prioritize new compatibility shims.");
 
     Ok(())

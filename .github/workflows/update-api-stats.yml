@@ -1,0 +1,142 @@
+name: Update API Coverage Stats
+
+on:
+  schedule:
+    # Run weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # Allow manual trigger
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/parser/javascript.rs'
+      - 'src/transformer/**'
+      - 'src/scripts/fetch_chrome_only_apis.rs'
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          
+      - name: Build project
+        run: cargo build --release --features cli
+        
+      - name: Fetch latest Chrome-only APIs
+        id: fetch_apis
+        run: |
+          # Run the command and capture output
+          output=$(cargo run --release chrome-only-apis 2>&1)
+          echo "$output"
+          
+          # Extract statistics using grep and awk - Updated for new format
+          total=$(echo "$output" | grep "Total Chrome-only APIs (including MDN + our implementations):" | awk '{print $NF}')
+          implemented=$(echo "$output" | grep "Implemented (with converters/shims):" | awk '{print $NF}')
+          not_implemented=$(echo "$output" | grep "Not yet implemented:" | awk '{print $NF}')
+          percentage=$(echo "$output" | grep "Implementation coverage:" | awk '{print $NF}' | tr -d '%')
+          
+          # Fallback: calculate percentage if not found
+          if [ -z "$percentage" ] && [ -n "$total" ] && [ "$total" -gt 0 ]; then
+            percentage=$(( (implemented * 100) / total ))
+          elif [ -z "$percentage" ]; then
+            percentage=0
+          fi
+          
+          echo "total=$total" >> $GITHUB_OUTPUT
+          echo "implemented=$implemented" >> $GITHUB_OUTPUT
+          echo "not_implemented=$not_implemented" >> $GITHUB_OUTPUT
+          echo "percentage=$percentage" >> $GITHUB_OUTPUT
+          
+          echo "📊 Stats: $implemented/$total implemented ($percentage%)"
+          
+      - name: Update README with latest stats
+        if: steps.fetch_apis.outputs.total != ''
+        run: |
+          total="${{ steps.fetch_apis.outputs.total }}"
+          implemented="${{ steps.fetch_apis.outputs.implemented }}"
+          not_implemented="${{ steps.fetch_apis.outputs.not_implemented }}"
+          percentage="${{ steps.fetch_apis.outputs.percentage }}"
+          
+          # Update the progress bar URL
+          sed -i "s|https://progress-bar.xyz/[0-9]*/?scale=100&title=API%20Coverage|https://progress-bar.xyz/${percentage}/?scale=100\&title=API%20Coverage|g" README.md
+          
+          # Update the text showing implemented count
+          sed -i "s|\*\*[0-9]* of [0-9]* Chrome-only APIs\*\*|**${implemented} of ${total} Chrome-only APIs**|g" README.md
+          
+          # Update the table counts
+          sed -i "s|🔍 \*\*Total Tracked\*\* | [0-9]* ||g" README.md
+          sed -i "s|🔍 \*\*Total Tracked\*\* | [0-9]*|🔍 **Total Tracked** | ${total}|g" README.md
+          
+          sed -i "s|✅ \*\*Implemented\*\* | [0-9]* ([0-9]*%)||g" README.md  
+          sed -i "s|✅ \*\*Implemented\*\* | [0-9]* ([0-9]*%)|✅ **Implemented** | ${implemented} (${percentage}%)|g" README.md
+          
+          sed -i "s|⏳ \*\*Not Implemented\*\* | [0-9]* ([0-9]*%)||g" README.md
+          not_impl_percentage=$(( 100 - percentage ))
+          sed -i "s|⏳ \*\*Not Implemented\*\* | [0-9]* ([0-9]*%)|⏳ **Not Implemented** | ${not_implemented} (${not_impl_percentage}%)|g" README.md
+          
+          echo "✅ README.md updated with latest stats"
+          
+      - name: Update CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+        if: steps.fetch_apis.outputs.total != ''
+        run: |
+          total="${{ steps.fetch_apis.outputs.total }}"
+          implemented="${{ steps.fetch_apis.outputs.implemented }}"
+          not_implemented="${{ steps.fetch_apis.outputs.not_implemented }}"
+          percentage="${{ steps.fetch_apis.outputs.percentage }}"
+          not_impl_percentage=$(( 100 - percentage ))
+          
+          # Update the summary line
+          sed -i "s|> \*\*Summary\*\*: [0-9]* Chrome-only APIs detected | [0-9]* Implemented ([0-9]*%) | [0-9]* Not Implemented ([0-9]*%)|> **Summary**: ${total} Chrome-only APIs detected | ${implemented} Implemented (${percentage}%) | ${not_implemented} Not Implemented (${not_impl_percentage}%)|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          
+          # Update the table
+          sed -i "s|\\*\\*Total Chrome-Only APIs\\*\\* | [0-9]* | 100%|**Total Chrome-Only APIs** | ${total} | 100%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|\\*\\*✅ Implemented\\*\\* | [0-9]* | [0-9]*%|**✅ Implemented** | ${implemented} | ${percentage}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|\\*\\*⏳ Not Implemented\\*\\* | [0-9]* | [0-9]*%|**⏳ Not Implemented** | ${not_implemented} | ${not_impl_percentage}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          
+          echo "✅ Status document updated"
+          
+      - name: Commit changes
+        if: steps.fetch_apis.outputs.total != ''
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add README.md CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+            git commit -m "chore: Update Chrome API coverage stats" \
+              -m "Total APIs: ${{ steps.fetch_apis.outputs.total }}" \
+              -m "Implemented: ${{ steps.fetch_apis.outputs.implemented }} (${{ steps.fetch_apis.outputs.percentage }}%)" \
+              -m "Not Implemented: ${{ steps.fetch_apis.outputs.not_implemented }}" \
+              -m "" \
+              -m "Auto-updated by GitHub Actions"
+            git push
+            echo "✅ Changes committed and pushed"
+          fi
+          
+      - name: Create summary
+        if: steps.fetch_apis.outputs.total != ''
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📊 Chrome API Coverage Update
+          
+          ![Progress](https://progress-bar.xyz/${{ steps.fetch_apis.outputs.percentage }}/?scale=100&title=Coverage&width=400&color=00d1b2&suffix=%25)
+          
+          | Metric | Value |
+          |--------|-------|
+          | **Total APIs** | ${{ steps.fetch_apis.outputs.total }} |
+          | **Implemented** | ${{ steps.fetch_apis.outputs.implemented }} (${{ steps.fetch_apis.outputs.percentage }}%) |
+          | **Not Implemented** | ${{ steps.fetch_apis.outputs.not_implemented }} |
+          
+          Updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          EOF
