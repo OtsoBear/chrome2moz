@@ -167,87 +167,96 @@ function showAnalysis(data) {
     });
 }
 
-// Group incompatibilities by category with detailed subcategories
+// Group incompatibilities by TYPE OF SOLUTION (not by API)
 function groupIncompatibilities(incompatibilities) {
     const categories = {
-        // Chrome namespace conversions by API type
-        'Chrome → Browser: Storage APIs': [],
-        'Chrome → Browser: Tabs APIs': [],
-        'Chrome → Browser: Runtime APIs': [],
-        'Chrome → Browser: Messaging APIs': [],
-        'Chrome → Browser: Scripting APIs': [],
-        'Chrome → Browser: Commands APIs': [],
-        'Chrome → Browser: Other APIs': [],
+        // Simple conversions (just namespace changes)
+        'Simple Namespace Conversions (chrome → browser)': [],
         
-        // Callback style conversions
+        // Callback to promise conversions
         'Callback-Style API Updates': [],
         
-        // Manifest changes
-        'Manifest Changes': [],
+        // Manifest file changes
+        'Manifest Modifications': [],
         
-        // Chrome-only APIs with different solutions
-        'Unsupported APIs (No Firefox Equivalent)': [],
-        'APIs Using Shims': [],
-        'APIs Using Stubs': [],
+        // Chrome-only APIs grouped by solution type
+        'APIs Using Compatibility Shims': [],
+        'APIs Using Stubs (No-op)': [],
         'APIs with Workarounds': [],
+        'Unsupported APIs (No Firefox Equivalent)': [],
         
-        // Other categories
+        // Other
         'Permission Updates': [],
-        'Configuration Changes': [],
-        'Code Transformations': []
+        'Configuration Changes': []
     };
 
     incompatibilities.forEach(issue => {
         const desc = issue.description.toLowerCase();
         const location = issue.location.toLowerCase();
 
-        // Categorize Chrome namespace conversions by API type
-        if (desc.includes('chrome namespace usage') || (desc.includes('chrome.') && !desc.includes('unsupported'))) {
-            if (desc.includes('storage')) {
-                categories['Chrome → Browser: Storage APIs'].push(issue);
-            } else if (desc.includes('tabs')) {
-                categories['Chrome → Browser: Tabs APIs'].push(issue);
-            } else if (desc.includes('runtime') && !desc.includes('sendmessage')) {
-                categories['Chrome → Browser: Runtime APIs'].push(issue);
-            } else if (desc.includes('sendmessage') || desc.includes('onmessage') || desc.includes('message')) {
-                categories['Chrome → Browser: Messaging APIs'].push(issue);
-            } else if (desc.includes('scripting') || desc.includes('executescript')) {
-                categories['Chrome → Browser: Scripting APIs'].push(issue);
-            } else if (desc.includes('commands')) {
-                categories['Chrome → Browser: Commands APIs'].push(issue);
-            } else {
-                categories['Chrome → Browser: Other APIs'].push(issue);
-            }
+        // Determine if this is JUST a namespace conversion or something more complex
+        const isJustNamespace = (desc.includes('chrome namespace usage') || desc.includes('will be converted to browser'))
+            && !desc.includes('callback')
+            && !desc.includes('shim')
+            && !desc.includes('stub')
+            && !desc.includes('workaround')
+            && !desc.includes('unsupported');
+
+        if (isJustNamespace) {
+            categories['Simple Namespace Conversions (chrome → browser)'].push(issue);
         }
-        // Callback-style updates
-        else if (desc.includes('callback') || desc.includes('promise') || desc.includes('async')) {
+        // Callback-style conversions (promise-based)
+        else if (desc.includes('callback') || desc.includes('promise') || (desc.includes('async') && !location.includes('manifest'))) {
             categories['Callback-Style API Updates'].push(issue);
         }
         // Manifest changes
-        else if (location.includes('manifest') || desc.includes('manifest')) {
-            categories['Manifest Changes'].push(issue);
+        else if (location.includes('manifest') || desc.includes('manifest.json') || desc.includes('browser_specific_settings')) {
+            categories['Manifest Modifications'].push(issue);
         }
-        // Chrome-only APIs with different solutions
-        else if (desc.includes('shim')) {
-            categories['APIs Using Shims'].push(issue);
-        } else if (desc.includes('stub')) {
-            categories['APIs Using Stubs'].push(issue);
-        } else if (desc.includes('unsupported') || desc.includes('not supported')) {
-            categories['Unsupported APIs (No Firefox Equivalent)'].push(issue);
-        } else if (desc.includes('workaround') || desc.includes('alternative')) {
+        // APIs using compatibility shims (partial/full implementations)
+        else if (desc.includes('shim') ||
+                 desc.includes('polyfill') ||
+                 desc.includes('storage.session') ||
+                 desc.includes('sidepanel') ||
+                 desc.includes('action compat') ||
+                 desc.includes('declarativenetrequest') ||
+                 desc.includes('userscripts') ||
+                 desc.includes('downloads') ||
+                 desc.includes('notifications compat')) {
+            categories['APIs Using Compatibility Shims'].push(issue);
+        }
+        // APIs using stubs (no-op implementations)
+        else if (desc.includes('stub') ||
+                 desc.includes('tabgroups') ||
+                 desc.includes('privacy api') ||
+                 (desc.includes('not supported') && desc.includes('stub'))) {
+            categories['APIs Using Stubs (No-op)'].push(issue);
+        }
+        // APIs with workarounds (different approaches)
+        else if (desc.includes('workaround') ||
+                 desc.includes('alternative') ||
+                 desc.includes('offscreen') ||
+                 desc.includes('declarativecontent') ||
+                 desc.includes('executescript') ||
+                 desc.includes('content script') ||
+                 desc.includes('worker') ||
+                 (desc.includes('convert') && (desc.includes('web worker') || desc.includes('message passing')))) {
             categories['APIs with Workarounds'].push(issue);
         }
+        // Completely unsupported APIs
+        else if (desc.includes('unsupported') ||
+                 desc.includes('not available') ||
+                 desc.includes('no firefox equivalent') ||
+                 (desc.includes('chrome-only') && !desc.includes('shim') && !desc.includes('stub'))) {
+            categories['Unsupported APIs (No Firefox Equivalent)'].push(issue);
+        }
         // Permission updates
-        else if (desc.includes('permission') || location.includes('permission')) {
+        else if (desc.includes('permission') && !location.includes('manifest')) {
             categories['Permission Updates'].push(issue);
         }
         // Configuration changes
-        else if (desc.includes('gecko') || desc.includes('config') || desc.includes('browser_specific')) {
+        else if (desc.includes('gecko.id') || desc.includes('extension id') || desc.includes('browser_specific')) {
             categories['Configuration Changes'].push(issue);
-        }
-        // Code transformations
-        else if (desc.includes('transform') || desc.includes('convert') || desc.includes('replace')) {
-            categories['Code Transformations'].push(issue);
         }
     });
 
