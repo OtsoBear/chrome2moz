@@ -207,10 +207,15 @@ function groupIncompatibilities(incompatibilities) {
     return categories;
 }
 
-// Render collapsible section
+// Render collapsible section with grouped common attributes
 function renderCollapsibleSection(title, issues, isExpanded = true) {
     const sectionId = title.replace(/\s+/g, '-').toLowerCase();
     const expandedClass = isExpanded ? '' : 'collapsed';
+    
+    // Find common attributes across all issues
+    const commonSeverity = issues.every(i => i.severity === issues[0].severity) ? issues[0].severity : null;
+    const allAutoFixable = issues.every(i => i.auto_fixable);
+    const commonSuggestion = issues.every(i => i.suggestion === issues[0].suggestion) ? issues[0].suggestion : null;
     
     // Calculate severity breakdown
     const severityBreakdown = {
@@ -249,16 +254,58 @@ function renderCollapsibleSection(title, issues, isExpanded = true) {
     html += '<span class="toggle-icon">▼</span>';
     html += '</div>';
     html += `<div class="section-content ${expandedClass}" id="${sectionId}">`;
-    html += '<div class="incompatibility-grid">';
     
+    // Show common attributes once if they apply to all issues
+    if (commonSeverity || allAutoFixable || commonSuggestion) {
+        html += '<div class="common-attributes">';
+        if (commonSeverity) {
+            html += `<span class="severity-badge severity-${commonSeverity.toLowerCase()}">${commonSeverity}</span>`;
+        }
+        if (allAutoFixable) {
+            html += '<span class="auto-fixable-badge">✓ Auto-fix</span>';
+        }
+        if (commonSuggestion) {
+            html += `<div class="common-suggestion">💡 ${commonSuggestion}</div>`;
+        }
+        html += '</div>';
+    }
+    
+    // Render issues in compact format
+    html += '<div class="compact-issue-list">';
     issues.forEach(issue => {
-        html += renderIncompatibility(issue);
+        html += renderCompactIssue(issue, commonSeverity, allAutoFixable, commonSuggestion);
     });
-    
-    html += '</div>';
-    html += '</div>';
     html += '</div>';
     
+    html += '</div>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Render individual issue in compact format
+function renderCompactIssue(issue, commonSeverity, commonAutoFix, commonSuggestion) {
+    let html = '<div class="compact-issue">';
+    
+    // Only show severity if not common
+    if (!commonSeverity) {
+        html += `<span class="severity-badge severity-${issue.severity.toLowerCase()}">${issue.severity}</span>`;
+    }
+    
+    // Only show auto-fix if not all auto-fixable
+    if (!commonAutoFix && issue.auto_fixable) {
+        html += '<span class="auto-fixable-badge">✓</span>';
+    }
+    
+    html += `<span class="issue-location">${issue.location}</span>`;
+    html += `<span class="issue-description">${issue.description}</span>`;
+    
+    // Only show suggestion if not common
+    if (!commonSuggestion && issue.suggestion) {
+        html += `<span class="issue-suggestion">💡 ${issue.suggestion}</span>`;
+    }
+    
+    html += '</div>';
     return html;
 }
 
@@ -272,23 +319,6 @@ function toggleSection(e) {
     content.classList.toggle('collapsed');
 }
 
-// Render individual incompatibility
-function renderIncompatibility(issue) {
-    let html = '<div class="incompatibility-card">';
-    html += '<div class="incompatibility-header">';
-    html += `<span class="severity-badge severity-${issue.severity.toLowerCase()}">${issue.severity}</span>`;
-    if (issue.auto_fixable) {
-        html += '<span class="auto-fixable-badge">✓ Auto-fix</span>';
-    }
-    html += '</div>';
-    html += `<div class="incompatibility-location">${issue.location}</div>`;
-    html += `<div class="incompatibility-description">${issue.description}</div>`;
-    if (issue.suggestion) {
-        html += `<div class="incompatibility-suggestion">💡 ${issue.suggestion}</div>`;
-    }
-    html += '</div>';
-    return html;
-}
 
 // Handle conversion
 async function handleConvert() {
