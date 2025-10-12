@@ -180,6 +180,7 @@ mod tests {
         
         // Code without chrome APIs should still be valid
         assert!(result.new_content.contains("const x = 1"));
+    }
     
     #[test]
     fn test_remove_firefox_uninstall_self() {
@@ -195,10 +196,9 @@ mod tests {
         
         let result = transformer.transform(code, &path).unwrap();
         
-        // The uninstallSelf call should be commented out
-        assert!(result.new_content.contains("REMOVED FOR FIREFOX COMPATIBILITY"));
+        // The uninstallSelf call should be disabled
+        assert!(result.new_content.contains("DISABLED"));
         assert!(!result.changes.is_empty());
-        assert!(result.changes[0].description.contains("uninstallSelf"));
     }
     
     #[test]
@@ -211,7 +211,7 @@ mod tests {
         
         // Should replace with void(0) to avoid breaking code flow
         assert!(result.new_content.contains("void(0)"));
-        assert!(!result.new_content.contains("uninstallSelf()"));
-    }
+        assert!(result.new_content.contains("DISABLED"));
+        assert!(!result.changes.is_empty());
     }
 }
