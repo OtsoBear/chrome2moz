@@ -7,12 +7,11 @@
 
 ## Executive Summary
 
-Chrome2Moz converts Chrome extensions to Firefox by handling **actual incompatibilities**, not artificial namespace differences.
-
-**Key Understanding**: Firefox natively supports `chrome.*` namespace! This tool focuses on:
+Chrome2Moz converts Chrome extensions to Firefox by handling **actual incompatibilities**
+This tool focuses on:
 1. Chrome-only APIs that don't exist in Firefox
 2. Manifest format differences
-3. Behavior differences (URL resolution, etc.)
+3. Behavior differences 
 
 **Key Features:**
 - **Smart Detection**: Identifies Chrome-only APIs requiring conversion
