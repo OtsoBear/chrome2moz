@@ -18,6 +18,7 @@ pub struct ExtensionMetadata {
     pub manifest_version: u8,
     pub size_bytes: usize,
     pub file_count: usize,
+    pub line_count: usize,
     pub has_background: bool,
     pub has_content_scripts: bool,
     pub has_web_accessible_resources: bool,
@@ -28,12 +29,16 @@ impl Extension {
         let size_bytes = files.values().map(|v| v.len()).sum();
         let file_count = files.len();
         
+        // Count actual lines in text files
+        let line_count = Self::count_lines(&files);
+        
         let metadata = ExtensionMetadata {
             name: manifest.name.clone(),
             version: manifest.version.clone(),
             manifest_version: manifest.manifest_version,
             size_bytes,
             file_count,
+            line_count,
             has_background: manifest.background.is_some(),
             has_content_scripts: !manifest.content_scripts.is_empty(),
             has_web_accessible_resources: manifest.web_accessible_resources.is_some(),
@@ -44,6 +49,29 @@ impl Extension {
             files,
             metadata,
         }
+    }
+    
+    /// Count total lines in all text files
+    fn count_lines(files: &HashMap<PathBuf, Vec<u8>>) -> usize {
+        files.iter()
+            .filter_map(|(path, bytes)| {
+                // Only count lines in text files (common text extensions)
+                let ext = path.extension()?.to_str()?;
+                let is_text = matches!(
+                    ext,
+                    "js" | "json" | "html" | "css" | "md" | "txt" | "xml" |
+                    "ts" | "jsx" | "tsx" | "yml" | "yaml" | "svg"
+                );
+                
+                if is_text {
+                    // Try to convert to string and count lines
+                    String::from_utf8(bytes.clone()).ok()
+                        .map(|content| content.lines().count())
+                } else {
+                    None
+                }
+            })
+            .sum()
     }
     
     /// Get all JavaScript files in the extension

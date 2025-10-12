@@ -74,6 +74,7 @@ pub fn analyze_extension_zip(zip_data: &[u8]) -> Result<String, JsValue> {
         "extension_version": context.source.metadata.version,
         "manifest_version": context.source.metadata.manifest_version,
         "file_count": context.source.metadata.file_count,
+        "line_count": context.source.metadata.line_count,
         "size_bytes": context.source.metadata.size_bytes,
         "incompatibilities": context.incompatibilities.iter().map(|i| {
             serde_json::json!({

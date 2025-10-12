@@ -114,16 +114,13 @@ function showAnalysis(data) {
     hideAllSections();
     analysisSection.style.display = 'block';
 
-    // Calculate total lines of code (estimate based on file count)
-    const estimatedLines = data.file_count * 50; // Rough estimate
-
     // Stats grid
     let html = '<div class="stats-grid">';
     html += `<div class="stat-card"><div class="label">Extension</div><div class="value">${data.extension_name}</div></div>`;
     html += `<div class="stat-card"><div class="label">Version</div><div class="value">${data.extension_version}</div></div>`;
     html += `<div class="stat-card"><div class="label">Manifest</div><div class="value">v${data.manifest_version}</div></div>`;
     html += `<div class="stat-card"><div class="label">Files</div><div class="value">${data.file_count}</div></div>`;
-    html += `<div class="stat-card"><div class="label">Est. Lines</div><div class="value">~${estimatedLines}</div></div>`;
+    html += `<div class="stat-card"><div class="label">Lines</div><div class="value">${data.line_count.toLocaleString()}</div></div>`;
     html += `<div class="stat-card"><div class="label">Issues</div><div class="value">${data.incompatibilities.length}</div></div>`;
     html += '</div>';
 
