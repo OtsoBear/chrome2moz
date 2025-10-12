@@ -38,7 +38,8 @@ final-test-output/
 *.xpi
 *.zip
 3.10.11_0/
-
+WebClipper/
+webclipper-compiled/
 # Logs
 *.log
 
@@ -54,3 +55,8 @@ Thumbs.db
 # WebAssembly build artifacts
 web/pkg/
 *.wasm
+
+# Chrome-only API data - KEEP THIS FILE
+# Update it with: cargo run chrome-only-apis
+# It gets embedded in binaries at compile-time
+!chrome_only_apis.json

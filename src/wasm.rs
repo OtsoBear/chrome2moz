@@ -25,6 +25,26 @@ pub fn init() {
 /// Returns the converted extension as a ZIP file (bytes) or an error message
 #[wasm_bindgen]
 pub fn convert_extension_zip(zip_data: &[u8]) -> Result<Vec<u8>, JsValue> {
+    convert_extension_zip_with_options(zip_data, None)
+}
+
+/// Convert with custom shortcut replacements
+/// shortcut_replacements_json: JSON object mapping original shortcuts to replacements
+#[wasm_bindgen]
+pub fn convert_extension_zip_with_shortcuts(
+    zip_data: &[u8],
+    shortcut_replacements_json: &str,
+) -> Result<Vec<u8>, JsValue> {
+    let replacements: HashMap<String, String> = serde_json::from_str(shortcut_replacements_json)
+        .map_err(|e| JsValue::from_str(&format!("Invalid shortcut replacements: {}", e)))?;
+    
+    convert_extension_zip_with_options(zip_data, Some(replacements))
+}
+
+fn convert_extension_zip_with_options(
+    zip_data: &[u8],
+    shortcut_replacements: Option<HashMap<String, String>>,
+) -> Result<Vec<u8>, JsValue> {
     console_log!("Starting conversion...");
     
     // 1. Load extension from ZIP bytes
@@ -34,27 +54,64 @@ pub fn convert_extension_zip(zip_data: &[u8]) -> Result<Vec<u8>, JsValue> {
     console_log!("Extension loaded: {} v{}", extension.metadata.name, extension.metadata.version);
     
     // 2. Analyze extension
-    let context = crate::analyzer::analyze_extension(extension)
+    let mut context = crate::analyzer::analyze_extension(extension)
         .map_err(|e| JsValue::from_str(&format!("Analysis failed: {}", e)))?;
     
     console_log!("Analysis complete. Found {} incompatibilities", context.incompatibilities.len());
     
-    // 3. Apply default decisions (non-interactive)
+    // 3. Apply shortcut replacements if provided
+    if let Some(replacements) = shortcut_replacements {
+        console_log!("Applying {} shortcut replacements", replacements.len());
+        apply_shortcut_replacements(&mut context, replacements)?;
+    }
+    
+    // 4. Apply default decisions (non-interactive)
     let context = crate::apply_default_decisions(context);
     
-    // 4. Transform extension
+    // 5. Transform extension
     let result = crate::transformer::transform_extension(context)
         .map_err(|e| JsValue::from_str(&format!("Transformation failed: {}", e)))?;
     
     console_log!("Transformation complete. Modified {} files", result.modified_files.len());
     
-    // 5. Package as ZIP
+    // 6. Package as ZIP
     let zip_bytes = create_zip_from_result(&result)
         .map_err(|e| JsValue::from_str(&format!("Failed to create ZIP: {}", e)))?;
     
     console_log!("Conversion successful! ZIP size: {} bytes", zip_bytes.len());
     
     Ok(zip_bytes)
+}
+
+fn apply_shortcut_replacements(
+    context: &mut crate::models::ConversionContext,
+    replacements: HashMap<String, String>,
+) -> Result<(), JsValue> {
+    if let Some(commands) = context.source.manifest.commands.as_mut() {
+        for (original, replacement) in replacements {
+            // Find the command with this shortcut and replace it
+            for command in commands.values_mut() {
+                if let Some(suggested_key) = command.suggested_key.as_mut() {
+                    let mut found = false;
+                    
+                    // Check and replace in all platform keys
+                    for (platform, shortcut) in suggested_key.iter_mut() {
+                        if shortcut == &original {
+                            *shortcut = replacement.clone();
+                            found = true;
+                            console_log!("Replaced {} shortcut: {} -> {}", platform, original, replacement);
+                        }
+                    }
+                    
+                    if found {
+                        console_log!("Updated shortcut for command");
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
 }
 
 /// Analyze keyboard shortcuts for conflicts with Firefox

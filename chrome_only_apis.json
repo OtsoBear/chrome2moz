@@ -1,0 +1,1414 @@
+{
+  "updated_at": "2025-10-12T18:53:05.346932+00:00",
+  "source_version": "MDN browser-compat-data @ main",
+  "apis": {
+    "chrome.runtime.MessageSender.documentLifecycle": {
+      "path": "chrome.runtime.MessageSender.documentLifecycle",
+      "chrome_version": "106",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.MessageSender.documentLifecycle"
+    },
+    "chrome.declarativeNetRequest.setExtensionActionOptions": {
+      "path": "chrome.declarativeNetRequest.setExtensionActionOptions",
+      "chrome_version": "88",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.setExtensionActionOptions"
+    },
+    "chrome.devtools.inspectedWindow.Resource": {
+      "path": "chrome.devtools.inspectedWindow.Resource",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.Resource"
+    },
+    "chrome.downloads.DownloadItem.danger": {
+      "path": "chrome.downloads.DownloadItem.danger",
+      "chrome_version": "22",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: downloads.DownloadItem.danger"
+    },
+    "chrome.management.uninstall": {
+      "path": "chrome.management.uninstall",
+      "chrome_version": "8",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: management.uninstall"
+    },
+    "chrome.events.Event.getRules": {
+      "path": "chrome.events.Event.getRules",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: events.Event.getRules"
+    },
+    "chrome.notifications.NotificationOptions.progress": {
+      "path": "chrome.notifications.NotificationOptions.progress",
+      "chrome_version": "30",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.progress"
+    },
+    "chrome.bookmarks.onImportBegan": {
+      "path": "chrome.bookmarks.onImportBegan",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: bookmarks.onImportBegan"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders.excludedValues": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders.excludedValues",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.excludedResponseHeaders.excludedValues"
+    },
+    "chrome.downloads.acceptDanger": {
+      "path": "chrome.downloads.acceptDanger",
+      "chrome_version": "22",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": true,
+      "description": "Chrome API: downloads.acceptDanger"
+    },
+    "chrome.declarativeNetRequest.MAX_GETMATCHEDRULES_CALLS_PER_INTERVAL": {
+      "path": "chrome.declarativeNetRequest.MAX_GETMATCHEDRULES_CALLS_PER_INTERVAL",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.MAX_GETMATCHEDRULES_CALLS_PER_INTERVAL"
+    },
+    "chrome.management.getPermissionWarningsById": {
+      "path": "chrome.management.getPermissionWarningsById",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: management.getPermissionWarningsById"
+    },
+    "chrome.idle.queryState.locked": {
+      "path": "chrome.idle.queryState.locked",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: idle.queryState.locked"
+    },
+    "chrome.userScripts.execute": {
+      "path": "chrome.userScripts.execute",
+      "chrome_version": "135",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": true,
+      "description": "Chrome API: userScripts.execute"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.responseHeaders": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.responseHeaders",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.responseHeaders"
+    },
+    "chrome.devtools.inspectedWindow.onResourceAdded": {
+      "path": "chrome.devtools.inspectedWindow.onResourceAdded",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.onResourceAdded"
+    },
+    "chrome.tabs.onActiveChanged": {
+      "path": "chrome.tabs.onActiveChanged",
+      "chrome_version": "16",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.onActiveChanged"
+    },
+    "chrome.tabs.setZoomSettings": {
+      "path": "chrome.tabs.setZoomSettings",
+      "chrome_version": "42",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.setZoomSettings"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.method": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.method",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.method"
+    },
+    "chrome.sidePanel.PanelBehavior": {
+      "path": "chrome.sidePanel.PanelBehavior",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.PanelBehavior"
+    },
+    "chrome.sidePanel.PanelOptions": {
+      "path": "chrome.sidePanel.PanelOptions",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.PanelOptions"
+    },
+    "chrome.devtools.panels.ExtensionSidebarPane.setHeight": {
+      "path": "chrome.devtools.panels.ExtensionSidebarPane.setHeight",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.ExtensionSidebarPane.setHeight"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders.header": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders.header",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.excludedResponseHeaders.header"
+    },
+    "chrome.devtools.panels.sources": {
+      "path": "chrome.devtools.panels.sources",
+      "chrome_version": "38; 18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.sources"
+    },
+    "chrome.sidePanel.SidePanel": {
+      "path": "chrome.sidePanel.SidePanel",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.SidePanel"
+    },
+    "chrome.sidePanel.PanelOpenedInfo": {
+      "path": "chrome.sidePanel.PanelOpenedInfo",
+      "chrome_version": "141",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.PanelOpenedInfo"
+    },
+    "chrome.notifications.onButtonClicked": {
+      "path": "chrome.notifications.onButtonClicked",
+      "chrome_version": "28",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.onButtonClicked"
+    },
+    "chrome.tabGroups.TabGroup.shared": {
+      "path": "chrome.tabGroups.TabGroup.shared",
+      "chrome_version": "89",
+      "firefox_status": "NotSupported",
+      "category": "TabGroups",
+      "has_converter": true,
+      "description": "Chrome API: tabGroups.TabGroup.shared"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.parentFrameId": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.parentFrameId",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.parentFrameId"
+    },
+    "chrome.tabs.onSelectionChanged": {
+      "path": "chrome.tabs.onSelectionChanged",
+      "chrome_version": "4",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.onSelectionChanged"
+    },
+    "chrome.notifications.NotificationOptions.contextMessage": {
+      "path": "chrome.notifications.NotificationOptions.contextMessage",
+      "chrome_version": "31",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.contextMessage"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.type": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.type",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.type"
+    },
+    "chrome.declarativeNetRequest.ResourceType.webbundle": {
+      "path": "chrome.declarativeNetRequest.ResourceType.webbundle",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.ResourceType.webbundle"
+    },
+    "chrome.extension.onRequest": {
+      "path": "chrome.extension.onRequest",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: extension.onRequest"
+    },
+    "chrome.sidePanel.getLayout": {
+      "path": "chrome.sidePanel.getLayout",
+      "chrome_version": "140",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.getLayout"
+    },
+    "chrome.tabs.getSelected": {
+      "path": "chrome.tabs.getSelected",
+      "chrome_version": "4",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": true,
+      "description": "Chrome API: tabs.getSelected"
+    },
+    "chrome.runtime.MessageSender.tlsChannelId": {
+      "path": "chrome.runtime.MessageSender.tlsChannelId",
+      "chrome_version": "32",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.MessageSender.tlsChannelId"
+    },
+    "chrome.windows.getCurrent.getInfo.windowTypes": {
+      "path": "chrome.windows.getCurrent.getInfo.windowTypes",
+      "chrome_version": "46",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: windows.getCurrent.getInfo.windowTypes"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.url": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.url",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.url"
+    },
+    "chrome.windows.onBoundsChanged": {
+      "path": "chrome.windows.onBoundsChanged",
+      "chrome_version": "86",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: windows.onBoundsChanged"
+    },
+    "chrome.runtime.getPackageDirectoryEntry": {
+      "path": "chrome.runtime.getPackageDirectoryEntry",
+      "chrome_version": "29",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": true,
+      "description": "Chrome API: runtime.getPackageDirectoryEntry"
+    },
+    "chrome.devtools.inspectedWindow.onResourceContentCommitted": {
+      "path": "chrome.devtools.inspectedWindow.onResourceContentCommitted",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.onResourceContentCommitted"
+    },
+    "chrome.sidePanel": {
+      "path": "chrome.sidePanel",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel"
+    },
+    "chrome.extension.onRequestExternal": {
+      "path": "chrome.extension.onRequestExternal",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: extension.onRequestExternal"
+    },
+    "chrome.extension.getExtensionTabs": {
+      "path": "chrome.extension.getExtensionTabs",
+      "chrome_version": "5; 4",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: extension.getExtensionTabs"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.frameId": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.frameId",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.frameId"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.documentLifecycle": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.documentLifecycle",
+      "chrome_version": "106",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.documentLifecycle"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders.values": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders.values",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.excludedResponseHeaders.values"
+    },
+    "chrome.devtools.panels.ExtensionPanel.onSearch": {
+      "path": "chrome.devtools.panels.ExtensionPanel.onSearch",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.ExtensionPanel.onSearch"
+    },
+    "chrome.sidePanel.setOptions": {
+      "path": "chrome.sidePanel.setOptions",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.setOptions"
+    },
+    "chrome.sidePanel.OpenOptions": {
+      "path": "chrome.sidePanel.OpenOptions",
+      "chrome_version": "116",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.OpenOptions"
+    },
+    "chrome.devtools.inspectedWindow.eval.options.useContentScriptContext": {
+      "path": "chrome.devtools.inspectedWindow.eval.options.useContentScriptContext",
+      "chrome_version": "45",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.eval.options.useContentScriptContext"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.requestId": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.requestId",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.requestId"
+    },
+    "chrome.dom.openOrClosedShadowRoot": {
+      "path": "chrome.dom.openOrClosedShadowRoot",
+      "chrome_version": "88",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: dom.openOrClosedShadowRoot"
+    },
+    "chrome.downloads.setShelfEnabled": {
+      "path": "chrome.downloads.setShelfEnabled",
+      "chrome_version": "30",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": true,
+      "description": "Chrome API: downloads.setShelfEnabled"
+    },
+    "chrome.browsingData.RemovalOptions.originTypes": {
+      "path": "chrome.browsingData.RemovalOptions.originTypes",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: browsingData.RemovalOptions.originTypes"
+    },
+    "chrome.devtools.inspectedWindow.Resource.setContent": {
+      "path": "chrome.devtools.inspectedWindow.Resource.setContent",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.Resource.setContent"
+    },
+    "chrome.devtools.panels.Button": {
+      "path": "chrome.devtools.panels.Button",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.Button"
+    },
+    "chrome.idle.onStateChanged.locked": {
+      "path": "chrome.idle.onStateChanged.locked",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: idle.onStateChanged.locked"
+    },
+    "chrome.devtools.panels.ExtensionPanel.createStatusBarButton": {
+      "path": "chrome.devtools.panels.ExtensionPanel.createStatusBarButton",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.ExtensionPanel.createStatusBarButton"
+    },
+    "chrome.declarativeNetRequest.setExtensionActionOptions.options": {
+      "path": "chrome.declarativeNetRequest.setExtensionActionOptions.options",
+      "chrome_version": "88",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.setExtensionActionOptions.options"
+    },
+    "chrome.declarativeNetRequest.setExtensionActionOptions.options.tabUpdate": {
+      "path": "chrome.declarativeNetRequest.setExtensionActionOptions.options.tabUpdate",
+      "chrome_version": "89",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.setExtensionActionOptions.options.tabUpdate"
+    },
+    "chrome.notifications.NotificationOptions.priority": {
+      "path": "chrome.notifications.NotificationOptions.priority",
+      "chrome_version": "≤65",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.priority"
+    },
+    "chrome.devtools.inspectedWindow.Resource.url": {
+      "path": "chrome.devtools.inspectedWindow.Resource.url",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.Resource.url"
+    },
+    "chrome.devtools.panels.setOpenResourceHandler": {
+      "path": "chrome.devtools.panels.setOpenResourceHandler",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.setOpenResourceHandler"
+    },
+    "chrome.browsingData.DataTypeSet.serverBoundCertificates": {
+      "path": "chrome.browsingData.DataTypeSet.serverBoundCertificates",
+      "chrome_version": "26",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: browsingData.DataTypeSet.serverBoundCertificates"
+    },
+    "chrome.privacy.services.safeBrowsingExtendedReportingEnabled": {
+      "path": "chrome.privacy.services.safeBrowsingExtendedReportingEnabled",
+      "chrome_version": "42",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.safeBrowsingExtendedReportingEnabled"
+    },
+    "chrome.declarativeNetRequest.getMatchedRules": {
+      "path": "chrome.declarativeNetRequest.getMatchedRules",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.getMatchedRules"
+    },
+    "chrome.declarativeNetRequest.MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES": {
+      "path": "chrome.declarativeNetRequest.MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES",
+      "chrome_version": "120",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.MAX_NUMBER_OF_UNSAFE_DYNAMIC_RULES"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.parentDocumentId": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.parentDocumentId",
+      "chrome_version": "106",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.parentDocumentId"
+    },
+    "chrome.devtools.inspectedWindow.eval.options.contextSecurityOrigin": {
+      "path": "chrome.devtools.inspectedWindow.eval.options.contextSecurityOrigin",
+      "chrome_version": "45",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.eval.options.contextSecurityOrigin"
+    },
+    "chrome.declarativeNetRequest.GETMATCHEDRULES_QUOTA_INTERVAL": {
+      "path": "chrome.declarativeNetRequest.GETMATCHEDRULES_QUOTA_INTERVAL",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.GETMATCHEDRULES_QUOTA_INTERVAL"
+    },
+    "chrome.browsingData.RemovalOptions.originTypes.protectedWeb": {
+      "path": "chrome.browsingData.RemovalOptions.originTypes.protectedWeb",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: browsingData.RemovalOptions.originTypes.protectedWeb"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.responseHeaders.values": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.responseHeaders.values",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.responseHeaders.values"
+    },
+    "chrome.events.Rule": {
+      "path": "chrome.events.Rule",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: events.Rule"
+    },
+    "chrome.downloads.DownloadItem.endTime": {
+      "path": "chrome.downloads.DownloadItem.endTime",
+      "chrome_version": "22",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: downloads.DownloadItem.endTime"
+    },
+    "chrome.devtools.panels.SourcesPanel.onSelectionChanged": {
+      "path": "chrome.devtools.panels.SourcesPanel.onSelectionChanged",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.SourcesPanel.onSelectionChanged"
+    },
+    "chrome.notifications.NotificationOptions.imageUrl": {
+      "path": "chrome.notifications.NotificationOptions.imageUrl",
+      "chrome_version": "≤65",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.imageUrl"
+    },
+    "chrome.privacy.websites.protectedContentEnabled": {
+      "path": "chrome.privacy.websites.protectedContentEnabled",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.websites.protectedContentEnabled"
+    },
+    "chrome.notifications.onClosed.byUser": {
+      "path": "chrome.notifications.onClosed.byUser",
+      "chrome_version": "28",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.onClosed.byUser"
+    },
+    "chrome.runtime.requestUpdateCheck": {
+      "path": "chrome.runtime.requestUpdateCheck",
+      "chrome_version": "25",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.requestUpdateCheck"
+    },
+    "chrome.webNavigation.onCreatedNavigationTarget.sourceProcessId": {
+      "path": "chrome.webNavigation.onCreatedNavigationTarget.sourceProcessId",
+      "chrome_version": "22",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: webNavigation.onCreatedNavigationTarget.sourceProcessId"
+    },
+    "chrome.webNavigation.TransitionType.keyword_generated": {
+      "path": "chrome.webNavigation.TransitionType.keyword_generated",
+      "chrome_version": "44",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: webNavigation.TransitionType.keyword_generated"
+    },
+    "chrome.browsingData.RemovalOptions.originTypes.extension": {
+      "path": "chrome.browsingData.RemovalOptions.originTypes.extension",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: browsingData.RemovalOptions.originTypes.extension"
+    },
+    "chrome.devtools.inspectedWindow.eval.options.frameURL": {
+      "path": "chrome.devtools.inspectedWindow.eval.options.frameURL",
+      "chrome_version": "45",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.eval.options.frameURL"
+    },
+    "chrome.devtools.panels.openResource.lineNumber": {
+      "path": "chrome.devtools.panels.openResource.lineNumber",
+      "chrome_version": "45",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.openResource.lineNumber"
+    },
+    "chrome.downloads.FilenameConflictAction.prompt": {
+      "path": "chrome.downloads.FilenameConflictAction.prompt",
+      "chrome_version": "28",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: downloads.FilenameConflictAction.prompt"
+    },
+    "chrome.sidePanel.Side": {
+      "path": "chrome.sidePanel.Side",
+      "chrome_version": "140",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.Side"
+    },
+    "chrome.webNavigation.TransitionType.manual_subframe": {
+      "path": "chrome.webNavigation.TransitionType.manual_subframe",
+      "chrome_version": "44",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: webNavigation.TransitionType.manual_subframe"
+    },
+    "chrome.windows.getLastFocused.getInfo.windowTypes": {
+      "path": "chrome.windows.getLastFocused.getInfo.windowTypes",
+      "chrome_version": "46",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: windows.getLastFocused.getInfo.windowTypes"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.tabId": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.tabId",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.tabId"
+    },
+    "chrome.management.ExtensionInfo.versionName": {
+      "path": "chrome.management.ExtensionInfo.versionName",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: management.ExtensionInfo.versionName"
+    },
+    "chrome.privacy.websites.thirdPartyCookiesAllowed": {
+      "path": "chrome.privacy.websites.thirdPartyCookiesAllowed",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.websites.thirdPartyCookiesAllowed"
+    },
+    "chrome.dom": {
+      "path": "chrome.dom",
+      "chrome_version": "88",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: dom"
+    },
+    "chrome.declarativeNetRequest.ResourceType.webtransport": {
+      "path": "chrome.declarativeNetRequest.ResourceType.webtransport",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.ResourceType.webtransport"
+    },
+    "chrome.browsingData.DataTypeSet.fileSystems": {
+      "path": "chrome.browsingData.DataTypeSet.fileSystems",
+      "chrome_version": "26",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: browsingData.DataTypeSet.fileSystems"
+    },
+    "chrome.privacy.services.autofillCreditCardEnabled": {
+      "path": "chrome.privacy.services.autofillCreditCardEnabled",
+      "chrome_version": "70",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.autofillCreditCardEnabled"
+    },
+    "chrome.windows.get.getInfo.windowTypes": {
+      "path": "chrome.windows.get.getInfo.windowTypes",
+      "chrome_version": "46",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: windows.get.getInfo.windowTypes"
+    },
+    "chrome.events.Event.removeRules": {
+      "path": "chrome.events.Event.removeRules",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: events.Event.removeRules"
+    },
+    "chrome.devtools.panels.SourcesPanel.createSidebarPane": {
+      "path": "chrome.devtools.panels.SourcesPanel.createSidebarPane",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.SourcesPanel.createSidebarPane"
+    },
+    "chrome.notifications.NotificationOptions.appIconMaskUrl": {
+      "path": "chrome.notifications.NotificationOptions.appIconMaskUrl",
+      "chrome_version": "38",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.appIconMaskUrl"
+    },
+    "chrome.windows.WindowState.docked": {
+      "path": "chrome.windows.WindowState.docked",
+      "chrome_version": "44",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: windows.WindowState.docked"
+    },
+    "chrome.privacy.services.translationServiceEnabled": {
+      "path": "chrome.privacy.services.translationServiceEnabled",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.translationServiceEnabled"
+    },
+    "chrome.notifications.NotificationOptions.buttons": {
+      "path": "chrome.notifications.NotificationOptions.buttons",
+      "chrome_version": "≤65",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.buttons"
+    },
+    "chrome.declarativeNetRequest.MAX_NUMBER_OF_UNSAFE_SESSION_RULES": {
+      "path": "chrome.declarativeNetRequest.MAX_NUMBER_OF_UNSAFE_SESSION_RULES",
+      "chrome_version": "120",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.MAX_NUMBER_OF_UNSAFE_SESSION_RULES"
+    },
+    "chrome.runtime.onBrowserUpdateAvailable": {
+      "path": "chrome.runtime.onBrowserUpdateAvailable",
+      "chrome_version": "27",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.onBrowserUpdateAvailable"
+    },
+    "chrome.runtime.PlatformInfo.nacl_arch": {
+      "path": "chrome.runtime.PlatformInfo.nacl_arch",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.PlatformInfo.nacl_arch"
+    },
+    "chrome.bookmarks.onChildrenReordered": {
+      "path": "chrome.bookmarks.onChildrenReordered",
+      "chrome_version": "3",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: bookmarks.onChildrenReordered"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.responseHeaders.header": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.responseHeaders.header",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.responseHeaders.header"
+    },
+    "chrome.privacy.services.spellingServiceEnabled": {
+      "path": "chrome.privacy.services.spellingServiceEnabled",
+      "chrome_version": "20",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.spellingServiceEnabled"
+    },
+    "chrome.windows.Window.sessionId": {
+      "path": "chrome.windows.Window.sessionId",
+      "chrome_version": "31",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: windows.Window.sessionId"
+    },
+    "chrome.privacy.services.safeBrowsingEnabled": {
+      "path": "chrome.privacy.services.safeBrowsingEnabled",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.safeBrowsingEnabled"
+    },
+    "chrome.extension.setUpdateUrlData": {
+      "path": "chrome.extension.setUpdateUrlData",
+      "chrome_version": "9",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: extension.setUpdateUrlData"
+    },
+    "chrome.runtime.onRestartRequired": {
+      "path": "chrome.runtime.onRestartRequired",
+      "chrome_version": "29",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.onRestartRequired"
+    },
+    "chrome.sidePanel.PanelLayout": {
+      "path": "chrome.sidePanel.PanelLayout",
+      "chrome_version": "140",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.PanelLayout"
+    },
+    "chrome.sidePanel.getOptions": {
+      "path": "chrome.sidePanel.getOptions",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.getOptions"
+    },
+    "chrome.devtools.panels.openResource": {
+      "path": "chrome.devtools.panels.openResource",
+      "chrome_version": "45",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.openResource"
+    },
+    "chrome.runtime.onInstalled.details.id": {
+      "path": "chrome.runtime.onInstalled.details.id",
+      "chrome_version": "22",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.onInstalled.details.id"
+    },
+    "chrome.windows.create.createData.focused": {
+      "path": "chrome.windows.create.createData.focused",
+      "chrome_version": "12",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: windows.create.createData.focused"
+    },
+    "chrome.runtime.RequestUpdateCheckStatus": {
+      "path": "chrome.runtime.RequestUpdateCheckStatus",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.RequestUpdateCheckStatus"
+    },
+    "chrome.tabs.onHighlightChanged": {
+      "path": "chrome.tabs.onHighlightChanged",
+      "chrome_version": "16",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.onHighlightChanged"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.excludedResponseHeaders",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.excludedResponseHeaders"
+    },
+    "chrome.tabs.sendRequest": {
+      "path": "chrome.tabs.sendRequest",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.sendRequest"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.domains": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.domains",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.domains"
+    },
+    "chrome.storage.StorageArea.setAccessLevel": {
+      "path": "chrome.storage.StorageArea.setAccessLevel",
+      "chrome_version": "96",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: storage.StorageArea.setAccessLevel"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.frameType": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.frameType",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.frameType"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request"
+    },
+    "chrome.devtools.panels.SourcesPanel": {
+      "path": "chrome.devtools.panels.SourcesPanel",
+      "chrome_version": "38; 18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.SourcesPanel"
+    },
+    "chrome.privacy.services.autofillEnabled": {
+      "path": "chrome.privacy.services.autofillEnabled",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.autofillEnabled"
+    },
+    "chrome.browsingData.RemovalOptions.origin": {
+      "path": "chrome.browsingData.RemovalOptions.origin",
+      "chrome_version": "74",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: browsingData.RemovalOptions.origin"
+    },
+    "chrome.devtools.inspectedWindow.eval.options.scriptExecutionContext": {
+      "path": "chrome.devtools.inspectedWindow.eval.options.scriptExecutionContext",
+      "chrome_version": "107",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.eval.options.scriptExecutionContext"
+    },
+    "chrome.tabs.onReplaced": {
+      "path": "chrome.tabs.onReplaced",
+      "chrome_version": "26",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.onReplaced"
+    },
+    "chrome.devtools.panels.openResource.columnNumber": {
+      "path": "chrome.devtools.panels.openResource.columnNumber",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.openResource.columnNumber"
+    },
+    "chrome.webNavigation.TransitionType.start_page": {
+      "path": "chrome.webNavigation.TransitionType.start_page",
+      "chrome_version": "44",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: webNavigation.TransitionType.start_page"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.documentId": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.documentId",
+      "chrome_version": "106",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.documentId"
+    },
+    "chrome.sidePanel.open": {
+      "path": "chrome.sidePanel.open",
+      "chrome_version": "116",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.open"
+    },
+    "chrome.management.ExtensionInfo.offlineEnabled": {
+      "path": "chrome.management.ExtensionInfo.offlineEnabled",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: management.ExtensionInfo.offlineEnabled"
+    },
+    "chrome.notifications.NotificationOptions.requireInteraction": {
+      "path": "chrome.notifications.NotificationOptions.requireInteraction",
+      "chrome_version": "50",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.requireInteraction"
+    },
+    "chrome.webNavigation.onErrorOccurred.error": {
+      "path": "chrome.webNavigation.onErrorOccurred.error",
+      "chrome_version": "16",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: webNavigation.onErrorOccurred.error"
+    },
+    "chrome.notifications.update": {
+      "path": "chrome.notifications.update",
+      "chrome_version": "28",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.update"
+    },
+    "chrome.tabs.getAllInWindow": {
+      "path": "chrome.tabs.getAllInWindow",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": true,
+      "description": "Chrome API: tabs.getAllInWindow"
+    },
+    "chrome.devtools.inspectedWindow.getResources": {
+      "path": "chrome.devtools.inspectedWindow.getResources",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.getResources"
+    },
+    "chrome.devtools.inspectedWindow.Resource.getContent": {
+      "path": "chrome.devtools.inspectedWindow.Resource.getContent",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.inspectedWindow.Resource.getContent"
+    },
+    "chrome.sidePanel.GetPanelOptions": {
+      "path": "chrome.sidePanel.GetPanelOptions",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.GetPanelOptions"
+    },
+    "chrome.action.UserSettingsChange": {
+      "path": "chrome.action.UserSettingsChange",
+      "chrome_version": "130",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: action.UserSettingsChange"
+    },
+    "chrome.devtools.panels.openResource.url": {
+      "path": "chrome.devtools.panels.openResource.url",
+      "chrome_version": "45",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: devtools.panels.openResource.url"
+    },
+    "chrome.sidePanel.getPanelBehavior": {
+      "path": "chrome.sidePanel.getPanelBehavior",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.getPanelBehavior"
+    },
+    "chrome.tabs.Tab.pendingUrl": {
+      "path": "chrome.tabs.Tab.pendingUrl",
+      "chrome_version": "79",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.Tab.pendingUrl"
+    },
+    "chrome.sidePanel.onOpened": {
+      "path": "chrome.sidePanel.onOpened",
+      "chrome_version": "141",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.onOpened"
+    },
+    "chrome.tabs.update.updateProperties_selected_parameter": {
+      "path": "chrome.tabs.update.updateProperties_selected_parameter",
+      "chrome_version": "9",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.update.updateProperties_selected_parameter"
+    },
+    "chrome.tabs.create.selected": {
+      "path": "chrome.tabs.create.selected",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.create.selected"
+    },
+    "chrome.sidePanel.setPanelBehavior": {
+      "path": "chrome.sidePanel.setPanelBehavior",
+      "chrome_version": "114",
+      "firefox_status": "NotSupported",
+      "category": "SidePanel",
+      "has_converter": true,
+      "description": "Chrome API: sidePanel.setPanelBehavior"
+    },
+    "chrome.events.Event.addRules": {
+      "path": "chrome.events.Event.addRules",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: events.Event.addRules"
+    },
+    "chrome.runtime.PlatformNaclArch": {
+      "path": "chrome.runtime.PlatformNaclArch",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.PlatformNaclArch"
+    },
+    "chrome.storage.session.setAccessLevel": {
+      "path": "chrome.storage.session.setAccessLevel",
+      "chrome_version": "102",
+      "firefox_status": "NotSupported",
+      "category": "Storage",
+      "has_converter": true,
+      "description": "Chrome API: storage.session.setAccessLevel"
+    },
+    "chrome.notifications.NotificationOptions.isClickable": {
+      "path": "chrome.notifications.NotificationOptions.isClickable",
+      "chrome_version": "32",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.isClickable"
+    },
+    "chrome.privacy.services.alternateErrorPagesEnabled": {
+      "path": "chrome.privacy.services.alternateErrorPagesEnabled",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.alternateErrorPagesEnabled"
+    },
+    "chrome.privacy.services.autofillAddressEnabled": {
+      "path": "chrome.privacy.services.autofillAddressEnabled",
+      "chrome_version": "70",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.autofillAddressEnabled"
+    },
+    "chrome.tabs.insertCSS.matchAboutBlank": {
+      "path": "chrome.tabs.insertCSS.matchAboutBlank",
+      "chrome_version": "39",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: tabs.insertCSS.matchAboutBlank"
+    },
+    "chrome.downloads.DownloadQuery.endTime": {
+      "path": "chrome.downloads.DownloadQuery.endTime",
+      "chrome_version": "22",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: downloads.DownloadQuery.endTime"
+    },
+    "chrome.runtime.MessageSender.documentId": {
+      "path": "chrome.runtime.MessageSender.documentId",
+      "chrome_version": "106",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: runtime.MessageSender.documentId"
+    },
+    "chrome.history.HistoryItem.typedCount": {
+      "path": "chrome.history.HistoryItem.typedCount",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: history.HistoryItem.typedCount"
+    },
+    "chrome.events.Event.hasListeners": {
+      "path": "chrome.events.Event.hasListeners",
+      "chrome_version": "21",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: events.Event.hasListeners"
+    },
+    "chrome.privacy.services.searchSuggestEnabled": {
+      "path": "chrome.privacy.services.searchSuggestEnabled",
+      "chrome_version": "18",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: privacy.services.searchSuggestEnabled"
+    },
+    "chrome.management.getPermissionWarningsByManifest": {
+      "path": "chrome.management.getPermissionWarningsByManifest",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: management.getPermissionWarningsByManifest"
+    },
+    "chrome.notifications.NotificationOptions.items": {
+      "path": "chrome.notifications.NotificationOptions.items",
+      "chrome_version": "≤65",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.items"
+    },
+    "chrome.webRequest.onAuthRequired.asyncBlocking": {
+      "path": "chrome.webRequest.onAuthRequired.asyncBlocking",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: webRequest.onAuthRequired.asyncBlocking"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.responseHeaders.excludedValues": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.responseHeaders.excludedValues",
+      "chrome_version": "128",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.responseHeaders.excludedValues"
+    },
+    "chrome.bookmarks.onImportEnded": {
+      "path": "chrome.bookmarks.onImportEnded",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: bookmarks.onImportEnded"
+    },
+    "chrome.declarativeNetRequest.onRuleMatchedDebug.request.initiator": {
+      "path": "chrome.declarativeNetRequest.onRuleMatchedDebug.request.initiator",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.onRuleMatchedDebug.request.initiator"
+    },
+    "chrome.declarativeNetRequest.RuleCondition.excludedDomains": {
+      "path": "chrome.declarativeNetRequest.RuleCondition.excludedDomains",
+      "chrome_version": "84",
+      "firefox_status": "NotSupported",
+      "category": "DeclarativeNetRequest",
+      "has_converter": true,
+      "description": "Chrome API: declarativeNetRequest.RuleCondition.excludedDomains"
+    },
+    "chrome.management.ExtensionInfo.disabledReason": {
+      "path": "chrome.management.ExtensionInfo.disabledReason",
+      "chrome_version": "≤58",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: management.ExtensionInfo.disabledReason"
+    },
+    "chrome.notifications.NotificationOptions.eventTime": {
+      "path": "chrome.notifications.NotificationOptions.eventTime",
+      "chrome_version": "≤65",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: notifications.NotificationOptions.eventTime"
+    },
+    "chrome.browsingData.RemovalOptions.excludeOrigin": {
+      "path": "chrome.browsingData.RemovalOptions.excludeOrigin",
+      "chrome_version": "74",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: browsingData.RemovalOptions.excludeOrigin"
+    },
+    "chrome.extension.sendRequest": {
+      "path": "chrome.extension.sendRequest",
+      "chrome_version": "5",
+      "firefox_status": "NotSupported",
+      "category": "Other",
+      "has_converter": false,
+      "description": "Chrome API: extension.sendRequest"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 //! JavaScript parsing and analysis using regex patterns
 
 use crate::models::extension::ChromeApiCall;
+use crate::models::chrome_api_data::ChromeApiDataset;
 use regex::Regex;
 use lazy_static::lazy_static;
 use anyhow::Result;
@@ -31,6 +32,9 @@ pub const CHROME_ONLY_APIS: &[&str] = &[
 ];
 
 lazy_static! {
+    /// Global Chrome API dataset loaded from embedded JSON
+    static ref CHROME_API_DATASET: ChromeApiDataset = ChromeApiDataset::load();
+    
     // Regex to match chrome.* API calls
     static ref CHROME_API_PATTERN: Regex = Regex::new(
         r"chrome\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("
@@ -91,7 +95,18 @@ pub fn analyze_javascript(source: &str) -> Result<Vec<ChromeApiCall>> {
 }
 
 fn is_chrome_only_api(api_name: &str) -> bool {
+    // Use the dynamic dataset first
+    if CHROME_API_DATASET.is_chrome_only(api_name) {
+        return true;
+    }
+    
+    // Fallback to hardcoded list for safety
     CHROME_ONLY_APIS.iter().any(|&chrome_api| api_name.starts_with(chrome_api))
+}
+
+/// Get detailed information about a Chrome-only API
+pub fn get_chrome_api_info(api_name: &str) -> Option<&'static crate::models::chrome_api_data::ChromeApiInfo> {
+    CHROME_API_DATASET.get_info(api_name)
 }
 
 pub struct JavaScriptAnalyzer;

@@ -70,13 +70,31 @@ fn get_firefox_shortcuts() -> HashMap<String, String> {
     shortcuts.insert("ctrl+shift+a".to_string(), "Open Add-ons".to_string());
     
     // Developer tools
-    shortcuts.insert("ctrl+shift+i".to_string(), "Toggle Developer Tools".to_string());
-    shortcuts.insert("ctrl+shift+k".to_string(), "Web Console".to_string());
+    shortcuts.insert("ctrl+shift+a".to_string(), "Add-ons".to_string());
+    shortcuts.insert("ctrl+shift+b".to_string(), "Toggle conditional breakpoint".to_string());
     shortcuts.insert("ctrl+shift+c".to_string(), "Inspector".to_string());
-    shortcuts.insert("ctrl+shift+j".to_string(), "Browser Console".to_string());
-    shortcuts.insert("ctrl+shift+m".to_string(), "Responsive Design Mode".to_string());
+    shortcuts.insert("ctrl+shift+d".to_string(), "Toggle toolbox docking mode".to_string());
     shortcuts.insert("ctrl+shift+e".to_string(), "Network Monitor".to_string());
-    shortcuts.insert("ctrl+shift+s".to_string(), "Debugger".to_string());
+    shortcuts.insert("ctrl+shift+f".to_string(), "Search in all files".to_string());
+    shortcuts.insert("ctrl+shift+g".to_string(), "Find Previous".to_string());
+    shortcuts.insert("ctrl+shift+h".to_string(), "Library window (History)".to_string());
+    shortcuts.insert("ctrl+shift+i".to_string(), "Toggle Developer Tools".to_string());
+    shortcuts.insert("ctrl+shift+j".to_string(), "Browser Console".to_string());
+    shortcuts.insert("ctrl+shift+k".to_string(), "Web Console".to_string());
+    shortcuts.insert("ctrl+shift+l".to_string(), "Clear output".to_string());
+    shortcuts.insert("ctrl+shift+m".to_string(), "Responsive Design Mode".to_string());
+    shortcuts.insert("ctrl+shift+n".to_string(), "Undo Close Window".to_string());
+    shortcuts.insert("ctrl+shift+o".to_string(), "Show All Bookmarks (Library)".to_string());
+    shortcuts.insert("ctrl+shift+p".to_string(), "New Private Window".to_string());
+    shortcuts.insert("ctrl+shift+q".to_string(), "Exit / Quit".to_string());
+    shortcuts.insert("ctrl+shift+r".to_string(), "Reload (override cache)".to_string());
+    shortcuts.insert("ctrl+shift+s".to_string(), "Take a screenshot".to_string());
+    shortcuts.insert("ctrl+shift+t".to_string(), "Undo Close Tab".to_string());
+    shortcuts.insert("ctrl+shift+v".to_string(), "Paste (as plain text)".to_string());
+    shortcuts.insert("ctrl+shift+w".to_string(), "Close Window".to_string());
+    shortcuts.insert("ctrl+shift+x".to_string(), "Move URL in address bar".to_string());
+    shortcuts.insert("ctrl+shift+y".to_string(), "Downloads".to_string());
+    shortcuts.insert("ctrl+shift+z".to_string(), "Open Debugger".to_string());
     
     // Other
     shortcuts.insert("ctrl+n".to_string(), "New Window".to_string());
@@ -91,10 +109,6 @@ fn get_firefox_shortcuts() -> HashMap<String, String> {
     shortcuts.insert("cmd+shift+t".to_string(), "Reopen Closed Tab".to_string());
     shortcuts.insert("cmd+w".to_string(), "Close Tab".to_string());
     shortcuts.insert("cmd+shift+w".to_string(), "Close Window".to_string());
-    shortcuts.insert("cmd+shift+i".to_string(), "Toggle Developer Tools".to_string());
-    shortcuts.insert("cmd+shift+k".to_string(), "Web Console".to_string());
-    shortcuts.insert("cmd+shift+c".to_string(), "Inspector".to_string());
-    shortcuts.insert("cmd+shift+j".to_string(), "Browser Console".to_string());
     shortcuts.insert("cmd+l".to_string(), "Focus Address Bar".to_string());
     shortcuts.insert("cmd+k".to_string(), "Focus Search Bar".to_string());
     shortcuts.insert("cmd+f".to_string(), "Find in Page".to_string());
@@ -102,8 +116,27 @@ fn get_firefox_shortcuts() -> HashMap<String, String> {
     shortcuts.insert("cmd+b".to_string(), "Show Bookmarks".to_string());
     shortcuts.insert("cmd+d".to_string(), "Bookmark Page".to_string());
     shortcuts.insert("cmd+n".to_string(), "New Window".to_string());
-    shortcuts.insert("cmd+shift+n".to_string(), "New Private Window".to_string());
     shortcuts.insert("cmd+q".to_string(), "Quit Firefox".to_string());
+    
+    // macOS Cmd+Shift combinations
+    shortcuts.insert("cmd+shift+a".to_string(), "Add-ons".to_string());
+    shortcuts.insert("cmd+shift+b".to_string(), "Toggle conditional breakpoint".to_string());
+    shortcuts.insert("cmd+shift+c".to_string(), "Inspect Element".to_string());
+    shortcuts.insert("cmd+shift+d".to_string(), "Toggle toolbox docking mode".to_string());
+    shortcuts.insert("cmd+shift+f".to_string(), "Search in all files".to_string());
+    shortcuts.insert("cmd+shift+g".to_string(), "Find Previous".to_string());
+    shortcuts.insert("cmd+shift+h".to_string(), "History sidebar".to_string());
+    shortcuts.insert("cmd+shift+j".to_string(), "Browser Console".to_string());
+    shortcuts.insert("cmd+shift+n".to_string(), "Undo Close Window".to_string());
+    shortcuts.insert("cmd+shift+o".to_string(), "Show All Bookmarks (Library)".to_string());
+    shortcuts.insert("cmd+shift+p".to_string(), "New Private Window".to_string());
+    shortcuts.insert("cmd+shift+r".to_string(), "Reload (override cache)".to_string());
+    shortcuts.insert("cmd+shift+s".to_string(), "Take a screenshot".to_string());
+    shortcuts.insert("cmd+shift+t".to_string(), "Undo Close Tab".to_string());
+    shortcuts.insert("cmd+shift+v".to_string(), "Paste (as plain text)".to_string());
+    shortcuts.insert("cmd+shift+w".to_string(), "Close Window".to_string());
+    shortcuts.insert("cmd+shift+x".to_string(), "Move URL in address bar".to_string());
+    shortcuts.insert("cmd+shift+z".to_string(), "Redo".to_string());
     
     shortcuts
 }

@@ -400,17 +400,262 @@ cargo fmt && cargo clippy -- -D warnings && cargo test
 
 ---
 
+## Chrome API Detection System
+
+### Overview
+
+The converter uses a **dynamic, offline-capable system** to detect 176 Chrome-only APIs that don't work in Firefox. The system fetches API compatibility data from MDN, embeds it in the binary, and provides detailed warnings with file locations.
+
+### Architecture
+
+```
+MDN browser-compat-data (GitHub)
+        ↓ cargo run chrome-only-apis
+chrome_only_apis.json (57KB, 176 APIs)
+        ↓ include_str!() at compile time
+Binary (CLI / WASM) - all APIs embedded
+        ↓ Loaded once at startup
+Runtime Detection - regex scan + dataset check
+```
+
+### Data Flow
+
+1. **Fetch** (Developer, periodically): `cargo run --features cli chrome-only-apis`
+   - Fetches from MDN browser-compat-data
+   - Parses API files and extracts Chrome-only APIs
+   - Saves to [`chrome_only_apis.json`](chrome_only_apis.json)
+
+2. **Embed** (Build time): JSON compiled into binary via `include_str!()`
+   - No external file dependencies
+   - Works offline and in WASM
+
+3. **Detect** (Runtime): Check API calls against embedded dataset
+   - O(1) HashMap lookup per API call
+   - Generates detailed warnings with file locations
+
+### API Data Structure
+
+**ChromeApiDataset**:
+- `updated_at`: Timestamp of last update
+- `source_version`: MDN version
+- `apis`: HashMap of 176 Chrome-only APIs
+
+**ChromeApiInfo**:
+- `path`: Full API path (e.g., "chrome.sidePanel.setPanelBehavior")
+- `chrome_version`: Chrome version that added it
+- `firefox_status`: NotSupported / Partial / Deprecated
+- `category`: API category for conversion strategy
+- `has_converter`: Whether auto-converter exists
+- `description`: Human-readable description
+
+### API Categories
+
+| Category | Description | Example APIs | Auto-Fix |
+|----------|-------------|--------------|----------|
+| **Offscreen** | Offscreen documents | `chrome.offscreen.*` | Yes ✓ |
+| **DeclarativeContent** | Page action rules | `chrome.declarativeContent.*` | Yes ✓ |
+| **TabGroups** | Tab grouping | `chrome.tabGroups.*` | Yes ✓ (stub) |
+| **SidePanel** | Side panel UI | `chrome.sidePanel.*` | Yes ✓ |
+| **Storage** | Session storage | `chrome.storage.session.*` | Yes ✓ |
+| **DeclarativeNetRequest** | Network filtering | `chrome.declarativeNetRequest.*` | Partial |
+| **Other** | Misc APIs | Various | Varies |
+
+### Warning Severity
+
+- **Minor** ✓ - Has automatic converter/shim (auto-fixable)
+- **Major** - Requires manual work (no converter yet)
+
+### Coverage Stats
+
+As of 2025-01-12:
+- **176 Chrome-only APIs** detected from MDN
+- **61 implemented** (34%) with automatic converters
+- **115 detected** (66%) without converters yet
+
+### Updating API Data
+
+```bash
+# Fetch latest APIs from MDN
+cargo run --features cli chrome-only-apis
+
+# Rebuild to embed new data
+cargo build --release   # CLI
+./build-wasm.sh        # Web UI
+```
+
+---
+
+## Detection Scope
+
+### What IS Detected ✅
+
+**1. Chrome-Only APIs (176 APIs)** - Fully detected with detailed warnings
+- `chrome.offscreen.*`, `chrome.declarativeContent.*`, `chrome.tabGroups.*`
+- `chrome.storage.session.*`, `chrome.sidePanel.*`, etc.
+
+**2. Manifest Structural Differences** - Fully detected and auto-fixed
+- `background.service_worker` → `background.scripts`
+- Missing `browser_specific_settings.gecko.id` → Auto-generated
+- Combined permissions → Separated `permissions` and `host_permissions`
+- `web_accessible_resources` format conversion
+
+**3. Keyboard Shortcut Conflicts** - Detected with interactive resolution
+- Conflicts with Firefox built-in shortcuts
+- 60+ Firefox shortcuts checked
+
+**4. importScripts() in Service Workers** - Detected and auto-converted
+- Added to manifest.background.scripts
+
+### What Is NOT Detected ❌
+
+These are **runtime behavioral differences** that cannot be detected through static code analysis:
+
+**1. Namespace Behavior** - NOT an issue! Firefox supports both `chrome.*` and `browser.*` natively.
+
+**2. Promise vs Callback Behavior** - NOT detected. Firefox automatically handles both styles.
+
+**3. API Parameter Differences** - NOT detected. Requires runtime testing.
+
+**4. URL Resolution Differences** - Cannot detect CSS/JS injection context differences.
+
+**5. Content Script Environment Differences** - Requires runtime analysis.
+
+**6. Event Handler Behavior** - Timing and handler isolation differences.
+
+**7. WebRequest API Restrictions** - Permission scope complexity.
+
+**8. Native Messaging Differences** - External host configuration.
+
+### Detection Strategy
+
+**What We CAN Detect (Static Analysis)**:
+- API existence (Chrome-only APIs)
+- Manifest structure (keys, formats)
+- Obvious incompatibilities (keyboard shortcuts)
+- File references (`importScripts()`)
+
+**What We CANNOT Detect (Runtime Behavior)**:
+- Parameter requirement differences
+- Timing differences
+- Event handling nuances
+- URL resolution behavior
+- Environment object differences
+- Permission scope behavior
+
+**Why This Approach Works**: Items 1-3 cover ~90% of conversion issues. The remaining 10% are behavioral differences that developers must test manually.
+
+### Testing Recommendations
+
+**After conversion**:
+1. Test thoroughly in Firefox
+2. Check Browser Console (Ctrl+Shift+J) for runtime errors
+3. Test all features, especially content scripts, message passing, storage, and network requests
+4. Use `about:debugging` → Load Temporary Add-on
+5. Use Firefox DevTools to check for errors
+
+---
+
+## Keyboard Shortcut Conflict Checker
+
+### Overview
+
+Automatically detects conflicts between Chrome extension keyboard shortcuts and Firefox's built-in shortcuts, helping choose alternative keybindings.
+
+### Features
+
+- **Automatic Detection**: Scans `manifest.json` for shortcut definitions
+- **Comprehensive Database**: Checks against 60+ Firefox built-in shortcuts
+- **Interactive Selection**: User-friendly dropdown interface for alternatives
+- **Custom Shortcuts**: Option to enter custom combinations
+- **Smart Suggestions**: Auto-suggests available Ctrl+Shift+[Letter] and Alt+Shift+[Letter] combinations
+- **Cross-Platform**: Supports Windows/Linux (Ctrl) and macOS (Cmd) modifiers
+
+### How It Works
+
+**1. Analysis Phase**:
+- Extracts shortcuts from `commands` section in manifest.json
+- Normalizes formats (e.g., "Ctrl+Shift+I" → "ctrl+shift+i")
+- Compares against Firefox shortcuts database
+- Generates alternative suggestions
+
+**2. User Interface**:
+- Displays "⌨️ Keyboard Shortcut Conflicts" section
+- Shows original Chrome shortcut, conflicting Firefox shortcut, and alternatives
+- Dropdown list of available alternatives
+- Custom shortcut entry option
+
+**3. Resolution**:
+- Selected alternatives automatically applied to converted manifest.json
+- No manual file editing required
+
+### Firefox Shortcuts Database
+
+**Includes shortcuts for**:
+- Navigation & Tabs (new tab, close tab, tab switching)
+- Browser UI (address bar, history, bookmarks, downloads)
+- Developer Tools (inspector, console, debugger, network monitor)
+- Page Operations (find, reload, print, zoom)
+
+### Common Conflicts
+
+| Chrome Shortcut | Firefox Function | Suggested Alternatives |
+|----------------|------------------|----------------------|
+| Ctrl+Shift+I | Open Developer Tools | Ctrl+Shift+X, Alt+Shift+I |
+| Ctrl+Shift+K | Delete browsing data | Web Console | Ctrl+Shift+L, Alt+Shift+K |
+| Ctrl+T | New tab | Ctrl+Shift+N, Alt+Shift+T |
+| Ctrl+B | Toggle bookmarks | Show bookmarks | Alternatives provided |
+
+### Recommended Shortcuts
+
+**Safe Combinations**:
+- `Ctrl+Shift+[Letter]` where letter is: X, Y, Z, Q, V, etc.
+- `Alt+Shift+[Letter]` for most letters
+- `Ctrl+Alt+[Letter]` (less common but usually available)
+
+**Avoid**:
+- Single keys (F1-F12 are often used)
+- Ctrl+[Letter] alone (most are taken)
+- Cmd+[Letter] on macOS (system shortcuts)
+
+### Updating the Shortcuts Database
+
+```bash
+# Fetch latest Firefox shortcuts
+cargo run --features cli --bin generate-shortcuts
+
+# Rebuild WASM
+bash build-wasm.sh
+```
+
+### Technical Implementation
+
+**Architecture** ([`src/analyzer/keyboard_shortcuts.rs`](src/analyzer/keyboard_shortcuts.rs)):
+- `get_firefox_shortcuts()`: Precompiled Firefox shortcuts
+- `extract_shortcuts()`: Parse manifest.json commands
+- `normalize_shortcut()`: Standardize format
+- `analyze_shortcuts()`: Detect conflicts
+- `generate_alternatives()`: Suggest replacements
+
+**WASM API**:
+```javascript
+import { analyze_keyboard_shortcuts } from './pkg/chrome2moz.js';
+const analysisJson = analyze_keyboard_shortcuts(zipData);
+```
+
+---
+
 ## Resources
 
 - [Chrome Extensions API](https://developer.chrome.com/docs/extensions/reference/)
 - [Firefox WebExtensions API](https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API)
-- [SWC Documentation](https://swc.rs/)
+- [Firefox Keyboard Shortcuts](https://support.mozilla.org/en-US/kb/keyboard-shortcuts-perform-firefox-tasks-quickly)
+- [MDN browser-compat-data](https://github.com/mdn/browser-compat-data)
 - [WebExtension Polyfill](https://github.com/mozilla/webextension-polyfill)
 
 ---
 
-**Version**: 0.2.0  
-**Status**: Production-ready  
+**Version**: 0.2.0
+**Status**: Production-ready
 **Maintainer**: [@OtsoBear](https://github.com/OtsoBear)
 
 **For user documentation, see [`README.md`](README.md)**

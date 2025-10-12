@@ -825,6 +825,85 @@ section {
     font-style: italic;
 }
 
+/* Shortcut Safe/Available Info */
+.shortcut-safe-info,
+.shortcut-available-info {
+    padding: 1rem;
+    margin: 1rem 0;
+    background: rgba(100, 255, 150, 0.03);
+    border-left: 3px solid rgba(100, 255, 150, 0.3);
+    border-radius: 4px;
+}
+
+.shortcut-safe-info h4,
+.shortcut-available-info h4 {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.shortcut-safe-info p,
+.shortcut-available-info p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.safe-shortcuts-list {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0;
+}
+
+.safe-shortcuts-list li {
+    display: inline-block;
+}
+
+.safe-shortcuts-list code {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: rgba(100, 255, 150, 0.1);
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid rgba(100, 255, 150, 0.2);
+}
+
+.available-shortcuts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.available-shortcut {
+    display: inline-block;
+}
+
+.available-shortcut code {
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.available-shortcut code:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+}
+
 /* Download Info */
 .download-info {
     background: rgba(255, 255, 255, 0.02);

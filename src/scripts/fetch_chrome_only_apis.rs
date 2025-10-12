@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fs;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -7,6 +8,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
+use crate::models::chrome_api_data::{ChromeApiDataset, ChromeApiInfo, FirefoxStatus, ApiCategory};
 use crate::parser::javascript::CHROME_ONLY_APIS;
 
 const REPO_OWNER: &str = "mdn";
@@ -31,6 +33,10 @@ struct ContentItem {
 }
 
 pub async fn run() -> Result<()> {
+    run_with_output("chrome_only_apis.json").await
+}
+
+pub async fn run_with_output(output_path: &str) -> Result<()> {
     let client = Client::builder()
         .user_agent("chrome-to-firefox (https://github.com/OtsoBear/chrome-to-firefox)")
         .timeout(Duration::from_secs(30))
@@ -53,6 +59,13 @@ pub async fn run() -> Result<()> {
         return Ok(());
     }
 
+    // Build the dataset
+    let mut dataset = ChromeApiDataset {
+        updated_at: chrono::Utc::now().to_rfc3339(),
+        source_version: format!("MDN browser-compat-data @ {}", BRANCH),
+        apis: Default::default(),
+    };
+
     println!("\n{}", "=".repeat(80));
     println!("WebExtension APIs supported in Chrome but not Firefox:");
     println!("{}\n", "=".repeat(80));
@@ -66,12 +79,18 @@ pub async fn run() -> Result<()> {
 
     for entry in &sorted_results {
         let chrome_path = format!("chrome.{}", entry.feature_path);
-        let status = if let Some(prefix) = matches_known_chrome_only(&chrome_path) {
+        let has_converter = matches_known_chrome_only(&chrome_path).is_some();
+        
+        if let Some(prefix) = matches_known_chrome_only(&chrome_path) {
             matched_prefixes.insert(prefix);
             implemented_count += 1;
-            "[implemented]"
         } else {
             not_implemented_count += 1;
+        }
+
+        let status = if has_converter {
+            "[implemented]"
+        } else {
             "[not implemented]"
         };
 
@@ -79,6 +98,18 @@ pub async fn run() -> Result<()> {
         println!("    Source: {}", entry.source_file);
         println!("    Chrome: {}", format_version(&entry.chrome_info));
         println!("    Firefox: {}\n", format_version(&entry.firefox_info));
+
+        // Add to dataset
+        let api_info = ChromeApiInfo {
+            path: chrome_path.clone(),
+            chrome_version: format_version(&entry.chrome_info),
+            firefox_status: parse_firefox_status(&entry.firefox_info),
+            category: ApiCategory::from_path(&chrome_path),
+            has_converter,
+            description: format!("Chrome API: {}", entry.feature_path),
+        };
+        
+        dataset.apis.insert(chrome_path, api_info);
     }
 
     let missing_prefixes: Vec<&str> = CHROME_ONLY_APIS
@@ -124,6 +155,18 @@ pub async fn run() -> Result<()> {
 
     println!();
     println!("Use this summary to prioritize new compatibility shims.");
+
+    // Save dataset to JSON
+    let json = serde_json::to_string_pretty(&dataset)
+        .context("failed to serialize API dataset")?;
+    
+    fs::write(output_path, json)
+        .with_context(|| format!("failed to write to {}", output_path))?;
+    
+    println!();
+    println!("✅ API data saved to: {}", output_path);
+    println!("   {} Chrome-only APIs detected", dataset.apis.len());
+    println!("   This file will be embedded in the converter for API detection");
 
     Ok(())
 }
@@ -299,6 +342,38 @@ fn matches_known_chrome_only(chrome_path: &str) -> Option<&'static str> {
         .iter()
         .copied()
         .find(|prefix| chrome_path.starts_with(prefix))
+}
+
+fn parse_firefox_status(entry: &Value) -> FirefoxStatus {
+    match entry {
+        Value::Null | Value::Bool(false) => FirefoxStatus::NotSupported,
+        Value::String(text) if text.trim().is_empty() || text.trim() == "false" => {
+            FirefoxStatus::NotSupported
+        }
+        Value::Object(map) => {
+            // Check if it's marked as deprecated
+            if map.get("version_removed").is_some() {
+                return FirefoxStatus::Deprecated;
+            }
+            // Check if there's partial support
+            if let Some(notes) = map.get("notes") {
+                if let Value::String(note_text) = notes {
+                    if note_text.to_lowercase().contains("partial") || note_text.to_lowercase().contains("limited") {
+                        return FirefoxStatus::Partial;
+                    }
+                }
+            }
+            // If version_added exists but is false/null, not supported
+            match map.get("version_added") {
+                Some(Value::Bool(false)) | Some(Value::Null) => FirefoxStatus::NotSupported,
+                Some(Value::String(text)) if text.trim().is_empty() || text.trim() == "false" => {
+                    FirefoxStatus::NotSupported
+                }
+                _ => FirefoxStatus::Partial,
+            }
+        }
+        _ => FirefoxStatus::NotSupported,
+    }
 }
 
 fn is_supported(entry: &Value) -> bool {

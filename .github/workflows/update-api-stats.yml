@@ -68,11 +68,11 @@ jobs:
           P="${{ steps.stats.outputs.pct }}"
           NP="${{ steps.stats.outputs.not_pct }}"
           
-          sed -i "s|progress-bar.xyz/[0-9]\\+/|progress-bar.xyz/${P}/|g" README.md
-          sed -i "s|\\*\\*[0-9]\\+ of [0-9]\\+ Chrome-only APIs|**${I} of ${T} Chrome-only APIs|g" README.md
-          sed -i "s|\\*\\*Total Tracked\\*\\* | [0-9]\\+|**Total Tracked** \\| ${T}|g" README.md
-          sed -i "s|\\*\\*Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)|**Implemented** \\| ${I} (${P}%)|g" README.md
-          sed -i "s|\\*\\*Not Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)|**Not Implemented** \\| ${N} (${NP}%)|g" README.md
+          sed -i "s#progress-bar.xyz/[0-9]\\+/#progress-bar.xyz/${P}/#g" README.md
+          sed -i "s#\\*\\*[0-9]\\+ of [0-9]\\+ Chrome-only APIs#**${I} of ${T} Chrome-only APIs#g" README.md
+          sed -i "s#\\*\\*Total Tracked\\*\\* | [0-9]\\+#**Total Tracked** | ${T}#g" README.md
+          sed -i "s#\\*\\*Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)#**Implemented** | ${I} (${P}%)#g" README.md
+          sed -i "s#\\*\\*Not Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)#**Not Implemented** | ${N} (${NP}%)#g" README.md
           
       - name: Update status doc
         run: |
@@ -82,10 +82,10 @@ jobs:
           P="${{ steps.stats.outputs.pct }}"
           NP="${{ steps.stats.outputs.not_pct }}"
           
-          sed -i "s|> \\*\\*Summary\\*\\*: [0-9]\\+ Chrome-only APIs detected | [0-9]\\+ Implemented ([0-9]\\+%) | [0-9]\\+ Not Implemented ([0-9]\\+%)|> **Summary**: ${T} Chrome-only APIs detected \\| ${I} Implemented (${P}%) \\| ${N} Not Implemented (${NP}%)|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
-          sed -i "s|\\*\\*Total Chrome-Only APIs\\*\\* | [0-9]\\+ | 100%|**Total Chrome-Only APIs** \\| ${T} \\| 100%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
-          sed -i "s|\\*\\*Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%|**Implemented** \\| ${I} \\| ${P}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
-          sed -i "s|\\*\\*Not Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%|**Not Implemented** \\| ${N} \\| ${NP}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s#> \\*\\*Summary\\*\\*: [0-9]\\+ Chrome-only APIs detected | [0-9]\\+ Implemented ([0-9]\\+%) | [0-9]\\+ Not Implemented ([0-9]\\+%)#> **Summary**: ${T} Chrome-only APIs detected | ${I} Implemented (${P}%) | ${N} Not Implemented (${NP}%)#g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s#\\*\\*Total Chrome-Only APIs\\*\\* | [0-9]\\+ | 100%#**Total Chrome-Only APIs** | ${T} | 100%#g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s#\\*\\*Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%#**Implemented** | ${I} | ${P}%#g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s#\\*\\*Not Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%#**Not Implemented** | ${N} | ${NP}%#g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
           
       - name: Commit
         run: |

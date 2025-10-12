@@ -1,5 +1,10 @@
 // Import WASM module
-import init, { convert_extension_zip, analyze_extension_zip, analyze_keyboard_shortcuts } from './pkg/chrome2moz.js';
+import init, {
+    convert_extension_zip,
+    convert_extension_zip_with_shortcuts,
+    analyze_extension_zip,
+    analyze_keyboard_shortcuts
+} from './pkg/chrome2moz.js';
 
 // State
 let wasmModule = null;
@@ -172,9 +177,9 @@ function showAnalysis(data) {
         })), false);
     }
 
-    // Add keyboard shortcut conflicts if any
-    if (shortcutData && shortcutData.conflicts && shortcutData.conflicts.length > 0) {
-        html += renderShortcutConflicts(shortcutData);
+    // Add keyboard shortcut analysis if available
+    if (shortcutData) {
+        html += renderShortcutAnalysis(shortcutData);
     }
 
     analysisResults.innerHTML = html;
@@ -234,6 +239,19 @@ function groupIncompatibilities(incompatibilities) {
         else if (location.includes('manifest') || desc.includes('manifest.json') || desc.includes('browser_specific_settings')) {
             categories['Manifest Modifications'].push(issue);
         }
+        // Check for Chrome-only APIs with automatic conversion
+        else if (issue.auto_fixable && desc.includes('chrome-only api')) {
+            // Auto-fixable Chrome-only APIs -> put in appropriate category
+            if (desc.includes('automatically') || desc.includes('polyfill') || desc.includes('in-memory')) {
+                categories['APIs Using Compatibility Shims'].push(issue);
+            } else if (desc.includes('no-op') || desc.includes('stub')) {
+                categories['APIs Using Stubs (No-op)'].push(issue);
+            } else if (desc.includes('convert') || desc.includes('map to') || desc.includes('workers')) {
+                categories['APIs with Workarounds'].push(issue);
+            } else {
+                categories['APIs Using Compatibility Shims'].push(issue); // Default for auto-fixable
+            }
+        }
         // APIs using compatibility shims (partial/full implementations)
         else if (desc.includes('shim') ||
                  desc.includes('polyfill') ||
@@ -264,7 +282,11 @@ function groupIncompatibilities(incompatibilities) {
                  (desc.includes('convert') && (desc.includes('web worker') || desc.includes('message passing')))) {
             categories['APIs with Workarounds'].push(issue);
         }
-        // Completely unsupported APIs
+        // Chrome-only APIs without converters
+        else if (desc.includes('chrome-only api') && !issue.auto_fixable) {
+            categories['Unsupported APIs (No Firefox Equivalent)'].push(issue);
+        }
+        // Completely unsupported APIs (fallback)
         else if (desc.includes('unsupported') ||
                  desc.includes('not available') ||
                  desc.includes('no firefox equivalent') ||
@@ -408,34 +430,74 @@ function toggleSection(e) {
     content.classList.toggle('collapsed');
 }
 
-// Render keyboard shortcut conflicts with interactive selection
-function renderShortcutConflicts(shortcutData) {
-    if (!shortcutData.conflicts || shortcutData.conflicts.length === 0) {
-        return '';
+// Render keyboard shortcut analysis section
+function renderShortcutAnalysis(shortcutData) {
+    const hasConflicts = shortcutData.conflicts && shortcutData.conflicts.length > 0;
+    const hasSafe = shortcutData.safe_shortcuts && shortcutData.safe_shortcuts.length > 0;
+    
+    if (!hasConflicts && !hasSafe) {
+        return ''; // No shortcuts at all
     }
 
     let html = '<div class="analysis-section shortcut-section">';
     html += '<div class="section-header" data-section="keyboard-shortcuts">';
     html += '<div class="section-header-content">';
-    html += '<h3>⌨️ Keyboard Shortcut Conflicts</h3>';
+    html += '<h3>⌨️ Keyboard Shortcuts</h3>';
     html += '<div class="section-meta">';
-    html += `<span class="section-count">${shortcutData.conflicts.length} conflict${shortcutData.conflicts.length !== 1 ? 's' : ''}</span>`;
-    html += '<span class="section-severity">• Action required</span>';
+    
+    if (hasConflicts) {
+        html += `<span class="section-count">${shortcutData.conflicts.length} conflict${shortcutData.conflicts.length !== 1 ? 's' : ''}</span>`;
+        html += '<span class="section-severity">• Optional: Choose alternatives or keep as-is</span>';
+    } else {
+        html += '<span class="section-count">✓ No conflicts</span>';
+        html += '<span class="section-severity">• All shortcuts are safe</span>';
+    }
+    
     html += '</div>';
     html += '</div>';
     html += '<span class="toggle-icon">▼</span>';
     html += '</div>';
     
     html += '<div class="section-content" id="keyboard-shortcuts">';
-    html += '<div class="shortcut-conflicts-info">';
-    html += '<p>⚠️ Your extension uses keyboard shortcuts that conflict with Firefox built-in shortcuts. ';
-    html += 'Please select alternative shortcuts below. The converter will update your manifest automatically.</p>';
-    html += '</div>';
     
-    // Render each conflict with dropdown selector
-    shortcutData.conflicts.forEach((conflict, index) => {
-        html += renderShortcutConflict(conflict, index);
-    });
+    // Show conflicts if any
+    if (hasConflicts) {
+        html += '<div class="shortcut-conflicts-info">';
+        html += '<p>⚠️ Your extension uses keyboard shortcuts that conflict with Firefox built-in shortcuts.</p>';
+        html += '<p><strong>This is optional</strong> - You can choose alternatives below, or leave unchanged. ';
+        html += 'Extensions can override Firefox shortcuts, but some users may prefer the browser defaults.</p>';
+        html += '</div>';
+        
+        shortcutData.conflicts.forEach((conflict, index) => {
+            html += renderShortcutConflict(conflict, index);
+        });
+    }
+    
+    // Show safe shortcuts
+    if (hasSafe) {
+        html += '<div class="shortcut-safe-info">';
+        html += '<h4>✓ Safe Shortcuts (No Conflicts)</h4>';
+        html += '<p>These shortcuts are safe to use in Firefox:</p>';
+        html += '<ul class="safe-shortcuts-list">';
+        shortcutData.safe_shortcuts.forEach(shortcut => {
+            html += `<li><code>${escapeHtml(shortcut)}</code></li>`;
+        });
+        html += '</ul>';
+        html += '</div>';
+    }
+    
+    // Show available alternatives (useful info)
+    if (shortcutData.available_alternatives && shortcutData.available_alternatives.length > 0) {
+        html += '<div class="shortcut-available-info">';
+        html += '<h4>💡 Available Alternatives</h4>';
+        html += '<p>If you need to add more shortcuts, these combinations are available in Firefox:</p>';
+        html += '<div class="available-shortcuts-grid">';
+        shortcutData.available_alternatives.slice(0, 20).forEach(shortcut => {
+            html += `<span class="available-shortcut"><code>${escapeHtml(shortcut)}</code></span>`;
+        });
+        html += '</div>';
+        html += '</div>';
+    }
     
     html += '</div>';
     html += '</div>';
@@ -451,16 +513,16 @@ function renderShortcutConflict(conflict, index) {
     let html = '<div class="shortcut-conflict">';
     html += '<div class="conflict-header">';
     html += `<span class="conflict-shortcut">${escapeHtml(conflict.chrome_shortcut)}</span>`;
-    html += '<span class="conflict-arrow">→</span>';
-    html += `<span class="conflict-firefox">${escapeHtml(conflict.firefox_shortcut)}</span>`;
+    html += '<span class="conflict-arrow">conflicts with</span>';
+    html += `<span class="conflict-firefox">Firefox: ${escapeHtml(conflict.firefox_description)}</span>`;
     html += '</div>';
-    html += `<div class="conflict-description">Firefox uses this for: <strong>${escapeHtml(conflict.firefox_description)}</strong></div>`;
     
     // Alternative selector
     html += '<div class="shortcut-selector">';
-    html += '<label for="' + conflictId + '">Select alternative:</label>';
+    html += '<label for="' + conflictId + '">Choose action:</label>';
     html += '<select id="' + conflictId + '" class="shortcut-dropdown" data-original="' + escapeHtml(conflict.chrome_shortcut) + '">';
-    html += '<option value="">-- Choose a replacement --</option>';
+    html += '<option value="_keep">⚠️ Keep original (may conflict with Firefox)</option>';
+    html += '<option value="">-- Or choose a safe alternative --</option>';
     
     // Add suggested alternatives
     if (conflict.suggested_alternatives && conflict.suggested_alternatives.length > 0) {
@@ -504,9 +566,11 @@ function setupShortcutSelectors() {
                 customInput.focus();
             } else {
                 customInput.style.display = 'none';
-                if (value) {
+                if (value && value !== '_keep') {
+                    // User selected an alternative
                     selectedShortcuts.set(original, value);
                 } else {
+                    // User wants to keep original or hasn't chosen
                     selectedShortcuts.delete(original);
                 }
             }
@@ -568,9 +632,14 @@ async function handleConvert() {
         // Convert the extension
         statusDetail.textContent = 'Transforming files...';
         
-        // TODO: Pass geckoId to WASM function when supported
-        // For now, just convert normally
-        convertedData = convert_extension_zip(uint8Array);
+        // Check if we have shortcut replacements
+        if (selectedShortcuts.size > 0) {
+            console.log('Converting with shortcut replacements:', Object.fromEntries(selectedShortcuts));
+            const replacements = JSON.stringify(Object.fromEntries(selectedShortcuts));
+            convertedData = convert_extension_zip_with_shortcuts(uint8Array, replacements);
+        } else {
+            convertedData = convert_extension_zip(uint8Array);
+        }
 
         // Show success
         showSuccess();
