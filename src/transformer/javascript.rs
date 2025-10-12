@@ -59,7 +59,7 @@ impl JavaScriptTransformer {
         })
     }
     
-    /// Simple pass-through with importScripts() removal
+    /// Simple pass-through with importScripts() removal and Firefox self-uninstall fix
     pub fn transform(&mut self, content: &str, path: &PathBuf) -> Result<ModifiedFile> {
         let original_content = content.to_string();
         let mut new_content = content.to_string();
@@ -87,6 +87,48 @@ impl JavaScriptTransformer {
                     new_code: None,
                 });
             }
+        }
+        
+        // Remove Firefox self-uninstall behavior
+        // The extension calls browser.management.uninstallSelf() when it detects Firefox
+        // This prevents the extension from working in Firefox
+        
+        // Pattern 1: Remove any call to .management.uninstallSelf()
+        let uninstall_pattern = regex::Regex::new(
+            r"(\w+\.)?browser\.management\.uninstallSelf\(\)|(\w+\.)?management\.uninstallSelf\(\)"
+        ).unwrap();
+        
+        if uninstall_pattern.is_match(&new_content) {
+            // Replace with void(0) to maintain code flow
+            new_content = uninstall_pattern.replace_all(&new_content,
+                "/* DISABLED: browser.management.uninstallSelf() */ void(0)"
+            ).to_string();
+            
+            changes.push(FileChange {
+                line_number: 0,
+                change_type: crate::models::ChangeType::Modification,
+                description: "Disabled browser.management.uninstallSelf() calls for Firefox compatibility".to_string(),
+                old_code: None,
+                new_code: None,
+            });
+        }
+        
+        // Pattern 2: Also check for Firefox-specific conditionals that might disable functionality
+        // e.g., if (clipperType !== FirefoxExtension) { doSomething(); }
+        // We want to ensure Firefox gets the same behavior as Chrome
+        let firefox_check_pattern = regex::Regex::new(
+            r"(\.get\(\)\.clipperType|clipperType)\s*!==\s*3"
+        ).unwrap();
+        
+        if firefox_check_pattern.is_match(&new_content) {
+            // Log this but don't auto-fix - might break intended behavior
+            changes.push(FileChange {
+                line_number: 0,
+                change_type: crate::models::ChangeType::Modification,
+                description: "INFO: Found Firefox-specific conditional check (clipperType !== 3) - manual review may be needed".to_string(),
+                old_code: None,
+                new_code: None,
+            });
         }
         
         Ok(ModifiedFile {
@@ -138,5 +180,38 @@ mod tests {
         
         // Code without chrome APIs should still be valid
         assert!(result.new_content.contains("const x = 1"));
+    
+    #[test]
+    fn test_remove_firefox_uninstall_self() {
+        let mut transformer = JavaScriptTransformer::new(&[]);
+        // Simulating the pattern from the source code
+        let code = r#"
+            if (this.clientInfo.get().clipperType === 3) {
+                WebExtension.browser.management.uninstallSelf();
+                resolve(true);
+            }
+        "#;
+        let path = PathBuf::from("webExtensionWorker.js");
+        
+        let result = transformer.transform(code, &path).unwrap();
+        
+        // The uninstallSelf call should be commented out
+        assert!(result.new_content.contains("REMOVED FOR FIREFOX COMPATIBILITY"));
+        assert!(!result.changes.is_empty());
+        assert!(result.changes[0].description.contains("uninstallSelf"));
+    }
+    
+    #[test]
+    fn test_remove_standalone_uninstall_self() {
+        let mut transformer = JavaScriptTransformer::new(&[]);
+        let code = "browser.management.uninstallSelf();";
+        let path = PathBuf::from("test.js");
+        
+        let result = transformer.transform(code, &path).unwrap();
+        
+        // Should replace with void(0) to avoid breaking code flow
+        assert!(result.new_content.contains("void(0)"));
+        assert!(!result.new_content.contains("uninstallSelf()"));
+    }
     }
 }

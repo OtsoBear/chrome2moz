@@ -78,6 +78,11 @@ cargo build --release
 - Convert `web_accessible_resources` format
 - Handle `importScripts()` → Add to manifest
 
+**Firefox Compatibility Fixes**:
+- Automatically disables `browser.management.uninstallSelf()` calls
+- Prevents extensions from self-destructing when detecting Firefox
+- See [docs/FIREFOX_SELF_UNINSTALL_FIX.md](./docs/FIREFOX_SELF_UNINSTALL_FIX.md) for details
+
 ## API Coverage
 
 ![API Implementation Progress](https://progress-bar.xyz/34/?scale=100&title=API%20Coverage&width=500&color=122f&suffix=%25)
