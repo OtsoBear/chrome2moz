@@ -163,9 +163,12 @@ function showAnalysis(data) {
 // Group incompatibilities by category
 function groupIncompatibilities(incompatibilities) {
     const categories = {
-        'Chrome Namespace Conversions': [],
-        'API Incompatibilities': [],
-        'Manifest Issues': [],
+        'Namespace Conversions (chrome → browser)': [],
+        'Callback-Style API Updates': [],
+        'Manifest Changes': [],
+        'Deprecated API Replacements': [],
+        'Permission Updates': [],
+        'Configuration Changes': [],
         'Code Transformations': [],
         'Other Issues': []
     };
@@ -174,16 +177,30 @@ function groupIncompatibilities(incompatibilities) {
         const desc = issue.description.toLowerCase();
         const location = issue.location.toLowerCase();
 
-        if (desc.includes('chrome.') || desc.includes('namespace')) {
-            categories['Chrome Namespace Conversions'].push(issue);
-        } else if (location.includes('manifest')) {
-            categories['Manifest Issues'].push(issue);
-        } else if (desc.includes('api') || desc.includes('method') || desc.includes('property')) {
-            categories['API Incompatibilities'].push(issue);
+        // Categorize based on description patterns
+        if (desc.includes('chrome.') && desc.includes('browser.')) {
+            categories['Namespace Conversions (chrome → browser)'].push(issue);
+        } else if (desc.includes('callback') || desc.includes('promise') || desc.includes('async')) {
+            categories['Callback-Style API Updates'].push(issue);
+        } else if (location.includes('manifest') || desc.includes('manifest')) {
+            categories['Manifest Changes'].push(issue);
+        } else if (desc.includes('permission') || location.includes('permission')) {
+            categories['Permission Updates'].push(issue);
+        } else if (desc.includes('deprecated') || desc.includes('removed') || desc.includes('unsupported')) {
+            categories['Deprecated API Replacements'].push(issue);
+        } else if (desc.includes('gecko') || desc.includes('config') || desc.includes('browser_specific')) {
+            categories['Configuration Changes'].push(issue);
         } else if (desc.includes('transform') || desc.includes('convert') || desc.includes('replace')) {
             categories['Code Transformations'].push(issue);
         } else {
             categories['Other Issues'].push(issue);
+        }
+    });
+
+    // Filter out empty categories
+    Object.keys(categories).forEach(key => {
+        if (categories[key].length === 0) {
+            delete categories[key];
         }
     });
 
@@ -195,16 +212,44 @@ function renderCollapsibleSection(title, issues, isExpanded = true) {
     const sectionId = title.replace(/\s+/g, '-').toLowerCase();
     const expandedClass = isExpanded ? '' : 'collapsed';
     
+    // Calculate severity breakdown
+    const severityBreakdown = {
+        Blocker: issues.filter(i => i.severity === 'Blocker').length,
+        Major: issues.filter(i => i.severity === 'Major').length,
+        Minor: issues.filter(i => i.severity === 'Minor').length,
+        Info: issues.filter(i => i.severity === 'Info').length
+    };
+    
+    const autoFixable = issues.filter(i => i.auto_fixable).length;
+    
     let html = '<div class="analysis-section">';
     html += `<div class="section-header ${expandedClass}" data-section="${sectionId}">`;
-    html += '<h3>';
-    html += `<span>${title}</span>`;
-    html += `<span class="section-count">${issues.length}</span>`;
-    html += '</h3>';
+    html += '<div class="section-header-content">';
+    html += `<h3>${title}</h3>`;
+    html += '<div class="section-meta">';
+    html += `<span class="section-count">${issues.length} change${issues.length !== 1 ? 's' : ''}</span>`;
+    
+    // Show severity breakdown
+    const severities = [];
+    if (severityBreakdown.Blocker > 0) severities.push(`${severityBreakdown.Blocker} blocker`);
+    if (severityBreakdown.Major > 0) severities.push(`${severityBreakdown.Major} major`);
+    if (severityBreakdown.Minor > 0) severities.push(`${severityBreakdown.Minor} minor`);
+    if (severityBreakdown.Info > 0) severities.push(`${severityBreakdown.Info} info`);
+    
+    if (severities.length > 0) {
+        html += `<span class="section-severity">• ${severities.join(', ')}</span>`;
+    }
+    
+    if (autoFixable > 0) {
+        html += `<span class="section-auto-fix">• ${autoFixable} auto-fixable</span>`;
+    }
+    
+    html += '</div>';
+    html += '</div>';
     html += '<span class="toggle-icon">▼</span>';
     html += '</div>';
     html += `<div class="section-content ${expandedClass}" id="${sectionId}">`;
-    html += '<div class="incompatibility-list">';
+    html += '<div class="incompatibility-grid">';
     
     issues.forEach(issue => {
         html += renderIncompatibility(issue);
@@ -229,17 +274,17 @@ function toggleSection(e) {
 
 // Render individual incompatibility
 function renderIncompatibility(issue) {
-    let html = '<div class="incompatibility">';
+    let html = '<div class="incompatibility-card">';
     html += '<div class="incompatibility-header">';
-    html += `<span class="severity-badge">${issue.severity}</span>`;
-    html += `<span class="location">${issue.location}</span>`;
+    html += `<span class="severity-badge severity-${issue.severity.toLowerCase()}">${issue.severity}</span>`;
     if (issue.auto_fixable) {
-        html += '<span class="auto-fixable">Auto-fixable</span>';
+        html += '<span class="auto-fixable-badge">✓ Auto-fix</span>';
     }
     html += '</div>';
-    html += `<div class="description">${issue.description}</div>`;
+    html += `<div class="incompatibility-location">${issue.location}</div>`;
+    html += `<div class="incompatibility-description">${issue.description}</div>`;
     if (issue.suggestion) {
-        html += `<div class="suggestion">${issue.suggestion}</div>`;
+        html += `<div class="incompatibility-suggestion">💡 ${issue.suggestion}</div>`;
     }
     html += '</div>';
     return html;
