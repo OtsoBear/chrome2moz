@@ -82,7 +82,7 @@ cargo build --release
 
 ![API Implementation Progress](https://progress-bar.xyz/34/?scale=100&title=API%20Coverage&width=500&color=122f&suffix=%25)
 
-**61 of 176 Chrome-only APIs** have automatic conversion support
+**61 of 179 Chrome-only APIs** have automatic conversion support
 
 **[View Full API Status →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**
 
