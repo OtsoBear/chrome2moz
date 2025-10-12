@@ -7,13 +7,13 @@
 
 ## Executive Summary
 
-Chrome2Moz is a production-ready, AST-based extension converter achieving **95%+ accuracy** through semantic code analysis. Unlike simple find-replace tools, it understands JavaScript/TypeScript at the syntax tree level, performing scope-aware transformations.
+Chrome2Moz is a production-ready, AST-based extension converter using semantic code analysis. Unlike simple find-replace tools, it understands JavaScript/TypeScript at the syntax tree level, performing scope-aware transformations.
 
 **Key Features:**
 - **AST-Based**: Uses SWC (Speedy Web Compiler) for semantic analysis
 - **Scope-Aware**: Distinguishes local variables from global Chrome APIs
 - **Multi-Target**: CLI tool, WASM library, and web interface
-- **Fast**: < 3 seconds for medium extensions (10-50 files)
+- **Fast**: Efficient processing of medium to large extensions
 - **Chrome-Only API Conversion**: Automated conversion for [`chrome.offscreen`](src/analyzer/offscreen.rs), [`chrome.declarativeContent`](src/analyzer/declarative_content.rs), and [`chrome.tabGroups`](src/transformer/tab_groups.rs)
 
 ---
@@ -241,34 +241,34 @@ function test() {
 
 ## Chrome-Only API Conversion
 
-Automated conversion system for Chrome-exclusive APIs with **95%+ success rate**.
+Automated conversion system for Chrome-exclusive APIs.
 
 ### Supported APIs
 
-| API | Conversion Strategy | Success Rate |
-|-----|-------------------|--------------|
-| [`chrome.offscreen`](src/transformer/offscreen_converter.rs) | Canvas→Worker, Audio→Worker, DOM→ContentScript, Network→Background | 95% |
-| [`chrome.declarativeContent`](src/transformer/declarative_content_converter.rs) | ContentScript + Messaging | 92% |
-| [`chrome.tabGroups`](src/transformer/tab_groups.rs) | No-op stub (prevents crashes) | 100% |
+| API | Conversion Strategy |
+|-----|-------------------|
+| [`chrome.offscreen`](src/transformer/offscreen_converter.rs) | Canvas→Worker, Audio→Worker, DOM→ContentScript, Network→Background |
+| [`chrome.declarativeContent`](src/transformer/declarative_content_converter.rs) | ContentScript + Messaging |
+| [`chrome.tabGroups`](src/transformer/tab_groups.rs) | No-op stub (prevents crashes) |
 
 ### Offscreen Conversion Strategies
 
 **[`OffscreenConverter`](src/transformer/offscreen_converter.rs)** implements 5 strategies:
 
-1. **Canvas → Web Worker** (25% of cases)
+1. **Canvas → Web Worker**
    - Transfers canvas control to worker
    - Uses [`OffscreenCanvas`](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas)
 
-2. **Audio → Audio Worker** (15% of cases)
+2. **Audio → Audio Worker**
    - Moves audio processing to worker
 
-3. **Network → Background Integration** (20% of cases)
+3. **Network → Background Integration**
    - Direct background script usage
 
-4. **DOM → Content Script** (20% of cases)
+4. **DOM → Content Script**
    - Injects content scripts on target pages
 
-5. **Mixed → Split Conversion** (10% of cases)
+5. **Mixed → Split Conversion**
    - Creates multiple workers/scripts per purpose
 
 ### DeclarativeContent Conversion
@@ -397,7 +397,7 @@ pub fn convert_extension(
 **Rationale**:
 - Semantic understanding (not just text patterns)
 - Scope awareness (local vs global variables)
-- 95%+ accuracy
+- High accuracy for transformations
 - TypeScript support
 - More complex (acceptable trade-off)
 
@@ -439,7 +439,7 @@ pub fn convert_extension(
 ### Optimization Strategies
 
 1. **Lazy Regex Compilation**: Compile patterns once with `lazy_static`
-2. **SWC Parser**: 20x faster than Babel
+2. **SWC Parser**: Fast Rust-based parser
 3. **Parallel Processing**: Using Rayon for file transformation
 4. **Incremental**: Skip files without `chrome.*` references
 
