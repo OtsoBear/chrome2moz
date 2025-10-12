@@ -569,58 +569,52 @@ section {
 .compact-issue-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
     padding: 0 0.5rem;
 }
 
 .compact-issue {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    padding: 0.6rem 0.75rem;
+    background: rgba(255, 255, 255, 0.015);
+    border-left: 2px solid rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
     transition: all 0.2s ease;
-    align-items: start;
 }
 
 .compact-issue:hover {
     background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.15);
 }
 
-.compact-issue .severity-badge,
-.compact-issue .auto-fixable-badge {
-    grid-column: 1;
-    align-self: start;
+.issue-badges {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
 }
 
 .issue-location {
-    grid-column: 2;
     color: var(--text-dim);
     font-size: 0.8rem;
     font-family: 'Courier New', monospace;
     font-weight: 500;
+    margin-bottom: 0.3rem;
 }
 
 .issue-description {
-    grid-column: 2;
     color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.5;
+    font-size: 0.85rem;
+    line-height: 1.4;
 }
 
 .issue-suggestion {
-    grid-column: 2;
     color: var(--text-dim);
     font-size: 0.8rem;
-    padding: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    margin-top: 0.4rem;
     background: rgba(255, 255, 255, 0.015);
     border-left: 2px solid rgba(255, 255, 255, 0.08);
     border-radius: 3px;
     line-height: 1.3;
-    margin-top: 0.25rem;
 }
 
 .severity-badge {
@@ -834,15 +828,9 @@ footer a:hover {
 
     header h1 {
         font-size: 2rem;
-    .compact-issue {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-    }
-    
-    .issue-location,
-    .issue-description,
-    .issue-suggestion {
-        grid-column: 1;
+    .common-attributes {
+        flex-direction: column;
+        align-items: flex-start;
     }
     }
 

@@ -120,7 +120,7 @@ function showAnalysis(data) {
     html += `<div class="stat-card"><div class="label">Version</div><div class="value">${data.extension_version}</div></div>`;
     html += `<div class="stat-card"><div class="label">Manifest</div><div class="value">v${data.manifest_version}</div></div>`;
     html += `<div class="stat-card"><div class="label">Files</div><div class="value">${data.file_count}</div></div>`;
-    html += `<div class="stat-card"><div class="label">Lines</div><div class="value">${data.line_count.toLocaleString()}</div></div>`;
+    html += `<div class="stat-card"><div class="label">Lines</div><div class="value">${data.line_count}</div></div>`;
     html += `<div class="stat-card"><div class="label">Issues</div><div class="value">${data.incompatibilities.length}</div></div>`;
     html += '</div>';
 
@@ -133,8 +133,18 @@ function showAnalysis(data) {
         html += '<p>This extension should work well in Firefox.</p>';
         html += '</div>';
     } else {
+        // Sort categories by severity (Blocker -> Major -> Minor -> Info)
+        const severityOrder = { 'Blocker': 0, 'Major': 1, 'Minor': 2, 'Info': 3 };
+        const sortedCategories = Object.keys(categories).sort((a, b) => {
+            const issuesA = categories[a];
+            const issuesB = categories[b];
+            const maxSeverityA = Math.min(...issuesA.map(i => severityOrder[i.severity] ?? 4));
+            const maxSeverityB = Math.min(...issuesB.map(i => severityOrder[i.severity] ?? 4));
+            return maxSeverityA - maxSeverityB;
+        });
+
         // Render each category as collapsible section
-        Object.keys(categories).forEach((category, index) => {
+        sortedCategories.forEach((category, index) => {
             const issues = categories[category];
             if (issues.length > 0) {
                 html += renderCollapsibleSection(category, issues, index === 0);
@@ -280,26 +290,31 @@ function renderCollapsibleSection(title, issues, isExpanded = true) {
     return html;
 }
 
-// Render individual issue in compact format
+// Render individual issue in compact format (no individual badges, just location + description)
 function renderCompactIssue(issue, commonSeverity, commonAutoFix, commonSuggestion) {
     let html = '<div class="compact-issue">';
     
-    // Only show severity if not common
-    if (!commonSeverity) {
-        html += `<span class="severity-badge severity-${issue.severity.toLowerCase()}">${issue.severity}</span>`;
+    // Only show these if NOT common (rare case where items differ within a category)
+    const showSeverity = !commonSeverity;
+    const showAutoFix = !commonAutoFix && issue.auto_fixable;
+    const showSuggestion = !commonSuggestion && issue.suggestion;
+    
+    if (showSeverity || showAutoFix) {
+        html += '<div class="issue-badges">';
+        if (showSeverity) {
+            html += `<span class="severity-badge severity-${issue.severity.toLowerCase()}">${issue.severity}</span>`;
+        }
+        if (showAutoFix) {
+            html += '<span class="auto-fixable-badge">✓</span>';
+        }
+        html += '</div>';
     }
     
-    // Only show auto-fix if not all auto-fixable
-    if (!commonAutoFix && issue.auto_fixable) {
-        html += '<span class="auto-fixable-badge">✓</span>';
-    }
+    html += `<div class="issue-location">${issue.location}</div>`;
+    html += `<div class="issue-description">${issue.description}</div>`;
     
-    html += `<span class="issue-location">${issue.location}</span>`;
-    html += `<span class="issue-description">${issue.description}</span>`;
-    
-    // Only show suggestion if not common
-    if (!commonSuggestion && issue.suggestion) {
-        html += `<span class="issue-suggestion">💡 ${issue.suggestion}</span>`;
+    if (showSuggestion) {
+        html += `<div class="issue-suggestion">💡 ${issue.suggestion}</div>`;
     }
     
     html += '</div>';
