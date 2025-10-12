@@ -6,23 +6,23 @@
 
 This document tracks WebExtension APIs that are supported in Chrome but not in Firefox, along with their implementation status in this converter tool.
 
-## 📊 Quick Stats
+##  Quick Stats
 
 | Category | Count | Percentage |
 |----------|-------|------------|
 | **Total Chrome-Only APIs** | 179 | 100% |
-| **✅ Implemented** | 61 | 34% |
-| **⏳ Not Implemented** | 118 | 66% |
+| ** Implemented** | 61 | 34% |
+| ** Not Implemented** | 118 | 66% |
 
 **Note**: Total includes 176 APIs from MDN data + 3 additional APIs we've implemented that aren't yet in MDN's dataset (`chrome.offscreen`, `chrome.declarativeContent`, `chrome.action.openPopup`).
 
-## 🎯 Implementation Categories
+##  Implementation Categories
 
-### 🟢 Fully Implemented (58 APIs)
+###  Fully Implemented (58 APIs)
 
 These APIs have automatic conversion support with compatibility shims or converters:
 
-#### declarativeNetRequest (46 APIs) - ✅ Complete Converter
+#### declarativeNetRequest (46 APIs) -  Complete Converter
 - Full conversion from Chrome's DNR to Firefox's webRequest API
 - **Implementation**: [`src/transformer/shims.rs:490-995`](src/transformer/shims.rs#L490)
 - **Features**: Block, redirect, modifyHeaders, upgradeScheme actions
@@ -68,7 +68,7 @@ These APIs have automatic conversion support with compatibility shims or convert
 
 </details>
 
-#### sidePanel (10 APIs) - ✅ Firefox Sidebar Adapter
+#### sidePanel (10 APIs) -  Firefox Sidebar Adapter
 - Maps Chrome's sidePanel to Firefox's sidebarAction API
 - **Implementation**: [`src/transformer/shims.rs:410-487`](src/transformer/shims.rs#L410)
 - **Status**: Functional with feature parity where possible
@@ -95,14 +95,14 @@ These APIs have automatic conversion support with compatibility shims or convert
 
 </details>
 
-#### storage.session (1 API) - ✅ In-Memory Polyfill
+#### storage.session (1 API) -  In-Memory Polyfill
 - Provides session storage using JavaScript Map
 - **Implementation**: [`src/transformer/shims.rs:298-407`](src/transformer/shims.rs#L298)
 - **Status**: Full API coverage with in-memory storage
 
 - `storage.session.setAccessLevel`
 
-#### Legacy APIs (3 APIs) - ✅ Compatibility Wrappers
+#### Legacy APIs (3 APIs) -  Compatibility Wrappers
 - **Implementation**: [`src/transformer/shims.rs:1055-1142`](src/transformer/shims.rs#L1055)
 - **Status**: Automatic conversion to modern equivalents
 
@@ -121,7 +121,7 @@ These APIs have automatic conversion support with compatibility shims or convert
 - `tabGroups.TabGroup.shared` - Part of tabGroups converter
 - `userScripts.execute` - Part of userScripts shim
 
-### 🔴 Not Yet Implemented (118 APIs)
+###  Not Yet Implemented (118 APIs)
 
 These APIs are detected but don't have automatic conversion support yet:
 
@@ -301,7 +301,7 @@ These APIs are detected but don't have automatic conversion support yet:
 - `windows.Window.sessionId`
 - `windows.WindowState.docked`
 
-## 🔍 Missing from MDN Data
+##  Missing from MDN Data
 
 The following APIs are tracked in [`src/parser/javascript.rs`](src/parser/javascript.rs) but weren't found in MDN's dataset:
 
@@ -311,29 +311,29 @@ The following APIs are tracked in [`src/parser/javascript.rs`](src/parser/javasc
 
 These may be newer APIs or specific methods not yet documented in MDN's compatibility data.
 
-## 📈 Implementation Priority
+##  Implementation Priority
 
 Based on usage frequency and conversion feasibility:
 
 ### High Priority (Commonly Used)
-1. ✅ `declarativeNetRequest.*` - **COMPLETE**
-2. ✅ `storage.session.*` - **COMPLETE**
-3. ⏳ `notifications.*` extended features - Partial support via shim
-4. ⏳ `privacy.*` settings - Stub implementation exists
+1.  `declarativeNetRequest.*` - **COMPLETE**
+2.  `storage.session.*` - **COMPLETE**
+3.  `notifications.*` extended features - Partial support via shim
+4.  `privacy.*` settings - Stub implementation exists
 
 ### Medium Priority (Moderate Usage)
-1. ⏳ `tabs.*` extended features - Some legacy APIs covered
-2. ⏳ `downloads.*` extended features - Basic stubs exist
-3. ⏳ `management.*` - Not implemented
-4. ⏳ `history.*` extended features - Not implemented
+1.  `tabs.*` extended features - Some legacy APIs covered
+2.  `downloads.*` extended features - Basic stubs exist
+3.  `management.*` - Not implemented
+4.  `history.*` extended features - Not implemented
 
 ### Low Priority (Rarely Used/Legacy)
-1. ⏳ `devtools.*` extended features - Developer tools specific
-2. ⏳ `extension.*` legacy APIs - Deprecated
-3. ⏳ `events.Rule.*` - Declarative events (legacy)
-4. ⏳ `dom.*` - Newer Chrome-specific features
+1.  `devtools.*` extended features - Developer tools specific
+2.  `extension.*` legacy APIs - Deprecated
+3.  `events.Rule.*` - Declarative events (legacy)
+4.  `dom.*` - Newer Chrome-specific features
 
-## 🛠️ How to Check Latest Status
+##  How to Check Latest Status
 
 Run this command to fetch the latest Chrome-only APIs from MDN:
 
@@ -346,7 +346,7 @@ This will:
 - Compare against implemented APIs in this tool
 - Generate a detailed report with implementation status
 
-## 📝 Contributing
+##  Contributing
 
 Want to help implement more Chrome-only APIs? Check out:
 
@@ -354,7 +354,7 @@ Want to help implement more Chrome-only APIs? Check out:
 2. [`src/parser/javascript.rs`](src/parser/javascript.rs) - Add API detection
 3. [`ARCHITECTURE.md`](ARCHITECTURE.md) - Understand the conversion pipeline
 
-## 📚 References
+##  References
 
 - [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data)
 - [Chrome Extensions API](https://developer.chrome.com/docs/extensions/reference/)

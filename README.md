@@ -26,7 +26,7 @@ A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically 
 
 ## Chrome API Coverage
 
-### 📊 Implementation Progress
+###  Implementation Progress
 
 ![API Implementation Progress](https://progress-bar.xyz/34/?scale=100&title=API%20Coverage&width=500&color=00d1b2&suffix=%25)
 
@@ -34,11 +34,11 @@ A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically 
 
 | Category | Count | Status |
 |----------|-------|--------|
-| 🔍 **Total Tracked** | 179 | APIs supported in Chrome but not Firefox |
-| ✅ **Implemented** | 61 (34%) | Automatic conversion with shims/converters |
-| ⏳ **Not Implemented** | 118 (66%) | Detection only, no conversion yet |
+|  **Total Tracked** | 179 | APIs supported in Chrome but not Firefox |
+|  **Implemented** | 61 (34%) | Automatic conversion with shims/converters |
+|  **Not Implemented** | 118 (66%) | Detection only, no conversion yet |
 
-### 🎯 Top Implemented Categories
+###  Top Implemented Categories
 
 | API Category | Coverage | APIs |
 |--------------|----------|------|
@@ -47,9 +47,9 @@ A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically 
 | **storage.session** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 1/1 In-memory polyfill |
 | **Legacy APIs** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 3/3 Compatibility wrappers |
 
-**[📊 View Full API Status & Breakdown →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**
+**[ View Full API Status & Breakdown →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**
 
-> 💡 **Tip**: Run `cargo run chrome-only-apis` to fetch the latest Chrome-only API list from MDN and check current implementation status.
+>  **Tip**: Run `cargo run chrome-only-apis` to fetch the latest Chrome-only API list from MDN and check current implementation status.
 
 ## Quick Start
 
@@ -133,20 +133,20 @@ For errors, check Browser Console (Ctrl+Shift+J).
 
 **Chrome-Only APIs:**
 
-See **[📊 Chrome API Implementation Status](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)** for the complete list of 176 Chrome-only APIs and their implementation status.
+See **[ Chrome API Implementation Status](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)** for the complete list of 176 Chrome-only APIs and their implementation status.
 
 **Fully Implemented (Automatic Conversion):**
-- ✅ `chrome.offscreen.*` - Converted to Web Workers, Content Scripts, or Background Script integrations
-- ✅ `chrome.declarativeContent.*` - Converted to content script + messaging patterns
-- ✅ `chrome.declarativeNetRequest.*` - Full converter to Firefox `webRequest` API (46 APIs)
-- ✅ `chrome.sidePanel.*` - Maps to Firefox `sidebarAction` with compatibility layer (10 APIs)
-- ✅ `chrome.storage.session` - In-memory polyfill using JavaScript Map
-- ✅ `chrome.userScripts.*` - Falls back to `contentScripts.register()`
-- ✅ Legacy APIs - `tabs.getSelected`, `tabs.getAllInWindow`, etc.
+-  `chrome.offscreen.*` - Converted to Web Workers, Content Scripts, or Background Script integrations
+-  `chrome.declarativeContent.*` - Converted to content script + messaging patterns
+-  `chrome.declarativeNetRequest.*` - Full converter to Firefox `webRequest` API (46 APIs)
+-  `chrome.sidePanel.*` - Maps to Firefox `sidebarAction` with compatibility layer (10 APIs)
+-  `chrome.storage.session` - In-memory polyfill using JavaScript Map
+-  `chrome.userScripts.*` - Falls back to `contentScripts.register()`
+-  Legacy APIs - `tabs.getSelected`, `tabs.getAllInWindow`, etc.
 
 **Stub/No-Op (No Firefox Equivalent):**
-- ⚠️ `chrome.tabGroups.*` - Stub provided (Firefox doesn't support tab grouping)
-- ⚠️ `chrome.action.openPopup` - Not available in Firefox
+-  `chrome.tabGroups.*` - Stub provided (Firefox doesn't support tab grouping)
+-  `chrome.action.openPopup` - Not available in Firefox
 
 **Not Yet Implemented (118 APIs):**
 - Most `devtools.*` extended features (19 APIs)
