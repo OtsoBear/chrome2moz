@@ -29,6 +29,7 @@ Chrome2Moz is a production-ready, AST-based extension converter using semantic c
 7. [Manifest Transformation](#manifest-transformation)
 8. [CLI & WASM](#cli--wasm)
 9. [Design Decisions](#design-decisions)
+10. [API Compatibility Matrix](#api-compatibility-matrix)
 
 ---
 
@@ -420,28 +421,6 @@ pub fn convert_extension(
 - Smaller output size
 - Cleaner code
 - More complex detection logic (acceptable)
-
----
-
-## Performance
-
-### Benchmarks
-
-| Extension Size | Files | Time | Memory |
-|---------------|-------|------|--------|
-| Small (< 10) | 5 | < 0.5s | < 20 MB |
-| Medium (10-50) | 25 | 1-2s | 30-40 MB |
-| Large (50-100) | 75 | 2-5s | 40-60 MB |
-| Very Large (100+) | 150 | 5-10s | 60-100 MB |
-
-**Test System**: MacBook Pro M1, 16GB RAM
-
-### Optimization Strategies
-
-1. **Lazy Regex Compilation**: Compile patterns once with `lazy_static`
-2. **SWC Parser**: Fast Rust-based parser
-3. **Parallel Processing**: Using Rayon for file transformation
-4. **Incremental**: Skip files without `chrome.*` references
 
 ---
 
