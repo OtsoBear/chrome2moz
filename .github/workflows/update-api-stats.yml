@@ -65,25 +65,20 @@ jobs:
           implemented="${{ steps.fetch_apis.outputs.implemented }}"
           not_implemented="${{ steps.fetch_apis.outputs.not_implemented }}"
           percentage="${{ steps.fetch_apis.outputs.percentage }}"
+          not_impl_percentage=$(( 100 - percentage ))
           
-          # Update the progress bar URL
-          sed -i "s|https://progress-bar.xyz/[0-9]*/?scale=100&title=API%20Coverage|https://progress-bar.xyz/${percentage}/?scale=100\&title=API%20Coverage|g" README.md
+          # Update the progress bar URL (escape & as \\&)
+          sed -i "s|https://progress-bar.xyz/[0-9]\\+/?scale=100\\&title=API%20Coverage|https://progress-bar.xyz/${percentage}/?scale=100\\&title=API%20Coverage|g" README.md
           
           # Update the text showing implemented count
-          sed -i "s|\*\*[0-9]* of [0-9]* Chrome-only APIs\*\*|**${implemented} of ${total} Chrome-only APIs**|g" README.md
+          sed -i "s|\\*\\*[0-9]\\+ of [0-9]\\+ Chrome-only APIs\\*\\*|**${implemented} of ${total} Chrome-only APIs**|g" README.md
           
-          # Update the table counts
-          sed -i "s|🔍 \*\*Total Tracked\*\* | [0-9]* ||g" README.md
-          sed -i "s|🔍 \*\*Total Tracked\*\* | [0-9]*|🔍 **Total Tracked** | ${total}|g" README.md
+          # Update the table counts (no emojis)
+          sed -i "s|\\*\\*Total Tracked\\*\\* | [0-9]\\+|**Total Tracked** | ${total}|g" README.md
+          sed -i "s|\\*\\*Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)|**Implemented** | ${implemented} (${percentage}%)|g" README.md
+          sed -i "s|\\*\\*Not Implemented\\*\\* | [0-9]\\+ ([0-9]\\+%)|**Not Implemented** | ${not_implemented} (${not_impl_percentage}%)|g" README.md
           
-          sed -i "s|✅ \*\*Implemented\*\* | [0-9]* ([0-9]*%)||g" README.md  
-          sed -i "s|✅ \*\*Implemented\*\* | [0-9]* ([0-9]*%)|✅ **Implemented** | ${implemented} (${percentage}%)|g" README.md
-          
-          sed -i "s|⏳ \*\*Not Implemented\*\* | [0-9]* ([0-9]*%)||g" README.md
-          not_impl_percentage=$(( 100 - percentage ))
-          sed -i "s|⏳ \*\*Not Implemented\*\* | [0-9]* ([0-9]*%)|⏳ **Not Implemented** | ${not_implemented} (${not_impl_percentage}%)|g" README.md
-          
-          echo "✅ README.md updated with latest stats"
+          echo "README.md updated with latest stats"
           
       - name: Update CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
         if: steps.fetch_apis.outputs.total != ''
@@ -95,14 +90,14 @@ jobs:
           not_impl_percentage=$(( 100 - percentage ))
           
           # Update the summary line
-          sed -i "s|> \*\*Summary\*\*: [0-9]* Chrome-only APIs detected | [0-9]* Implemented ([0-9]*%) | [0-9]* Not Implemented ([0-9]*%)|> **Summary**: ${total} Chrome-only APIs detected | ${implemented} Implemented (${percentage}%) | ${not_implemented} Not Implemented (${not_impl_percentage}%)|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|> \\*\\*Summary\\*\\*: [0-9]\\+ Chrome-only APIs detected | [0-9]\\+ Implemented ([0-9]\\+%) | [0-9]\\+ Not Implemented ([0-9]\\+%)|> **Summary**: ${total} Chrome-only APIs detected | ${implemented} Implemented (${percentage}%) | ${not_implemented} Not Implemented (${not_impl_percentage}%)|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
           
-          # Update the table
-          sed -i "s|\\*\\*Total Chrome-Only APIs\\*\\* | [0-9]* | 100%|**Total Chrome-Only APIs** | ${total} | 100%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
-          sed -i "s|\\*\\*✅ Implemented\\*\\* | [0-9]* | [0-9]*%|**✅ Implemented** | ${implemented} | ${percentage}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
-          sed -i "s|\\*\\*⏳ Not Implemented\\*\\* | [0-9]* | [0-9]*%|**⏳ Not Implemented** | ${not_implemented} | ${not_impl_percentage}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          # Update the table (no emojis)
+          sed -i "s|\\*\\*Total Chrome-Only APIs\\*\\* | [0-9]\\+ | 100%|**Total Chrome-Only APIs** | ${total} | 100%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|\\*\\*Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%|**Implemented** | ${implemented} | ${percentage}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
+          sed -i "s|\\*\\*Not Implemented\\*\\* | [0-9]\\+ | [0-9]\\+%|**Not Implemented** | ${not_implemented} | ${not_impl_percentage}%|g" CHROME_ONLY_API_IMPLEMENTATION_STATUS.md
           
-          echo "✅ Status document updated"
+          echo "Status document updated"
           
       - name: Commit changes
         if: steps.fetch_apis.outputs.total != ''
