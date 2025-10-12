@@ -389,6 +389,24 @@ function renderCompactIssue(issue, commonSeverity, commonAutoFix, commonSuggesti
     
     html += `<div class="issue-location">${issue.location}</div>`;
     html += `<div class="issue-description">${issue.description}</div>`;
+    
+    if (showSuggestion) {
+        html += `<div class="issue-suggestion">💡 ${issue.suggestion}</div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// Toggle section visibility
+function toggleSection(e) {
+    const header = e.currentTarget;
+    const sectionId = header.dataset.section;
+    const content = document.getElementById(sectionId);
+    
+    header.classList.toggle('collapsed');
+    content.classList.toggle('collapsed');
+}
 
 // Render keyboard shortcut conflicts with interactive selection
 function renderShortcutConflicts(shortcutData) {
@@ -520,24 +538,6 @@ function setupShortcutSelectors() {
             }
         });
     });
-}
-    
-    if (showSuggestion) {
-        html += `<div class="issue-suggestion">💡 ${issue.suggestion}</div>`;
-    }
-    
-    html += '</div>';
-    return html;
-}
-
-// Toggle section visibility
-function toggleSection(e) {
-    const header = e.currentTarget;
-    const sectionId = header.dataset.section;
-    const content = document.getElementById(sectionId);
-    
-    header.classList.toggle('collapsed');
-    content.classList.toggle('collapsed');
 }
 
 
