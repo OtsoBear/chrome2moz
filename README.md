@@ -149,7 +149,6 @@ cargo clippy -- -D warnings
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 ```
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for detailed technical documentation.
 
 ## Contributing
 
