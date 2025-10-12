@@ -1,11 +1,13 @@
 // Import WASM module
-import init, { convert_extension_zip, analyze_extension_zip } from './pkg/chrome2moz.js';
+import init, { convert_extension_zip, analyze_extension_zip, analyze_keyboard_shortcuts } from './pkg/chrome2moz.js';
 
 // State
 let wasmModule = null;
 let currentFile = null;
 let analysisData = null;
 let convertedData = null;
+let shortcutData = null;
+let selectedShortcuts = new Map(); // Map of original shortcut -> selected alternative
 
 // Initialize WASM
 async function initWasm() {
@@ -101,6 +103,17 @@ async function processFile(file) {
         const analysisJson = analyze_extension_zip(uint8Array);
         analysisData = JSON.parse(analysisJson);
 
+        // Analyze keyboard shortcuts
+        statusDetail.textContent = 'Checking keyboard shortcuts...';
+        try {
+            const shortcutJson = analyze_keyboard_shortcuts(uint8Array);
+            shortcutData = JSON.parse(shortcutJson);
+            console.log('Shortcut analysis:', shortcutData);
+        } catch (error) {
+            console.warn('Shortcut analysis failed:', error);
+            shortcutData = null;
+        }
+
         // Show analysis results
         showAnalysis(analysisData);
     } catch (error) {
@@ -159,12 +172,20 @@ function showAnalysis(data) {
         })), false);
     }
 
+    // Add keyboard shortcut conflicts if any
+    if (shortcutData && shortcutData.conflicts && shortcutData.conflicts.length > 0) {
+        html += renderShortcutConflicts(shortcutData);
+    }
+
     analysisResults.innerHTML = html;
 
     // Add event listeners for collapsible sections
     document.querySelectorAll('.section-header').forEach(header => {
         header.addEventListener('click', toggleSection);
     });
+    
+    // Set up shortcut selector event listeners
+    setupShortcutSelectors();
 }
 
 // Group incompatibilities by TYPE OF SOLUTION (not by API)
@@ -368,6 +389,138 @@ function renderCompactIssue(issue, commonSeverity, commonAutoFix, commonSuggesti
     
     html += `<div class="issue-location">${issue.location}</div>`;
     html += `<div class="issue-description">${issue.description}</div>`;
+
+// Render keyboard shortcut conflicts with interactive selection
+function renderShortcutConflicts(shortcutData) {
+    if (!shortcutData.conflicts || shortcutData.conflicts.length === 0) {
+        return '';
+    }
+
+    let html = '<div class="analysis-section shortcut-section">';
+    html += '<div class="section-header" data-section="keyboard-shortcuts">';
+    html += '<div class="section-header-content">';
+    html += '<h3>⌨️ Keyboard Shortcut Conflicts</h3>';
+    html += '<div class="section-meta">';
+    html += `<span class="section-count">${shortcutData.conflicts.length} conflict${shortcutData.conflicts.length !== 1 ? 's' : ''}</span>`;
+    html += '<span class="section-severity">• Action required</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '<span class="toggle-icon">▼</span>';
+    html += '</div>';
+    
+    html += '<div class="section-content" id="keyboard-shortcuts">';
+    html += '<div class="shortcut-conflicts-info">';
+    html += '<p>⚠️ Your extension uses keyboard shortcuts that conflict with Firefox built-in shortcuts. ';
+    html += 'Please select alternative shortcuts below. The converter will update your manifest automatically.</p>';
+    html += '</div>';
+    
+    // Render each conflict with dropdown selector
+    shortcutData.conflicts.forEach((conflict, index) => {
+        html += renderShortcutConflict(conflict, index);
+    });
+    
+    html += '</div>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Render individual shortcut conflict with selection dropdown
+function renderShortcutConflict(conflict, index) {
+    const conflictId = `shortcut-${index}`;
+    const selectedAlt = selectedShortcuts.get(conflict.chrome_shortcut) || '';
+    
+    let html = '<div class="shortcut-conflict">';
+    html += '<div class="conflict-header">';
+    html += `<span class="conflict-shortcut">${escapeHtml(conflict.chrome_shortcut)}</span>`;
+    html += '<span class="conflict-arrow">→</span>';
+    html += `<span class="conflict-firefox">${escapeHtml(conflict.firefox_shortcut)}</span>`;
+    html += '</div>';
+    html += `<div class="conflict-description">Firefox uses this for: <strong>${escapeHtml(conflict.firefox_description)}</strong></div>`;
+    
+    // Alternative selector
+    html += '<div class="shortcut-selector">';
+    html += '<label for="' + conflictId + '">Select alternative:</label>';
+    html += '<select id="' + conflictId + '" class="shortcut-dropdown" data-original="' + escapeHtml(conflict.chrome_shortcut) + '">';
+    html += '<option value="">-- Choose a replacement --</option>';
+    
+    // Add suggested alternatives
+    if (conflict.suggested_alternatives && conflict.suggested_alternatives.length > 0) {
+        const alternatives = conflict.suggested_alternatives.slice(0, 15); // Limit display
+        alternatives.forEach(alt => {
+            const selected = selectedAlt === alt ? ' selected' : '';
+            html += `<option value="${escapeHtml(alt)}"${selected}>${escapeHtml(alt)}</option>`;
+        });
+    }
+    
+    html += '<option value="custom">✏️ Enter custom shortcut...</option>';
+    html += '</select>';
+    
+    // Custom input (initially hidden)
+    html += '<input type="text" id="' + conflictId + '-custom" class="shortcut-custom-input" ';
+    html += 'placeholder="e.g., Ctrl+Shift+X" style="display: none;">';
+    
+    html += '</div>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Handle shortcut selection changes
+function setupShortcutSelectors() {
+    document.querySelectorAll('.shortcut-dropdown').forEach(select => {
+        select.addEventListener('change', (e) => {
+            const original = e.target.dataset.original;
+            const value = e.target.value;
+            const customInput = document.getElementById(e.target.id + '-custom');
+            
+            if (value === 'custom') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+                if (value) {
+                    selectedShortcuts.set(original, value);
+                } else {
+                    selectedShortcuts.delete(original);
+                }
+            }
+        });
+    });
+    
+    // Handle custom input
+    document.querySelectorAll('.shortcut-custom-input').forEach(input => {
+        input.addEventListener('blur', (e) => {
+            const selectId = e.target.id.replace('-custom', '');
+            const select = document.getElementById(selectId);
+            const original = select.dataset.original;
+            const value = e.target.value.trim();
+            
+            if (value) {
+                selectedShortcuts.set(original, value);
+                // Add custom value to dropdown
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                option.selected = true;
+                select.insertBefore(option, select.querySelector('option[value="custom"]'));
+            }
+        });
+        
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.target.blur();
+            }
+        });
+    });
+}
     
     if (showSuggestion) {
         html += `<div class="issue-suggestion">💡 ${issue.suggestion}</div>`;

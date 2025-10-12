@@ -57,6 +57,21 @@ pub fn convert_extension_zip(zip_data: &[u8]) -> Result<Vec<u8>, JsValue> {
     Ok(zip_bytes)
 }
 
+/// Analyze keyboard shortcuts for conflicts with Firefox
+#[wasm_bindgen]
+pub fn analyze_keyboard_shortcuts(zip_data: &[u8]) -> Result<String, JsValue> {
+    // Load extension
+    let extension = load_extension_from_bytes(zip_data)
+        .map_err(|e| JsValue::from_str(&format!("Failed to load extension: {}", e)))?;
+    
+    // Analyze shortcuts
+    let analysis = crate::analyzer::analyze_shortcuts(&extension);
+    
+    // Convert to JSON
+    serde_json::to_string_pretty(&analysis)
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize shortcuts: {}", e)))
+}
+
 /// Get conversion report as JSON without converting
 #[wasm_bindgen]
 pub fn analyze_extension_zip(zip_data: &[u8]) -> Result<String, JsValue> {

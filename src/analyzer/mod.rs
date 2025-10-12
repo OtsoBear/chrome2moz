@@ -4,9 +4,11 @@ pub mod manifest;
 pub mod api;
 pub mod offscreen;
 pub mod declarative_content;
+pub mod keyboard_shortcuts;
 
 pub use offscreen::OffscreenAnalyzer;
 pub use declarative_content::DeclarativeContentAnalyzer;
+pub use keyboard_shortcuts::{analyze_shortcuts, ShortcutAnalysis, ShortcutConflict};
 
 use crate::models::{Extension, ConversionContext};
 use anyhow::Result;
