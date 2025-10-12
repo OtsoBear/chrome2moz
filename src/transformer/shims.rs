@@ -1,299 +1,46 @@
 //! Compatibility shim generation
+//!
+//! NOTE: Firefox natively supports chrome.* namespace, so we only generate shims
+//! for APIs that don't exist in Firefox or have significant behavioral differences.
 
 use crate::models::{ConversionContext, NewFile};
 use anyhow::Result;
 use std::path::PathBuf;
 
-/// Generate compatibility shims for Firefox
-pub fn generate_shims(context: &ConversionContext) -> Result<Vec<NewFile>> {
+/// Generate compatibility shims for cross-browser support
+///
+/// **Simplified approach**: Always include ALL shims with runtime guards.
+/// Each shim checks if it's needed and self-activates. This eliminates
+/// the need for JS parsing and is more maintainable.
+///
+/// Shims make extensions work in BOTH Chrome and Firefox:
+/// - Runtime interception for API differences
+/// - Polyfills for missing APIs
+/// - Cross-browser compatibility layer
+pub fn generate_shims(_context: &ConversionContext) -> Result<Vec<NewFile>> {
     let mut shims = Vec::new();
     
-    // Check if we need browser namespace polyfill
-    let needs_browser_polyfill = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| content.contains("chrome."))
-                .unwrap_or(false)
-        });
-    
-    if needs_browser_polyfill {
-        shims.push(create_browser_polyfill());
-    }
-    
-    // Check if we need promise wrapper
-    let needs_promise_wrapper = context.incompatibilities
-        .iter()
-        .any(|i| matches!(i.category, crate::models::incompatibility::IncompatibilityCategory::CallbackVsPromise));
-    
-    if needs_promise_wrapper {
-        shims.push(create_promise_wrapper());
-    }
-    
-    // Check if we need action compatibility
-    if context.source.manifest.action.is_some() || context.source.manifest.browser_action.is_some() {
-        shims.push(create_action_compat());
-    }
-    
-    // Check if we need storage.session polyfill
-    let needs_storage_session = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| content.contains("storage.session"))
-                .unwrap_or(false)
-        });
-    
-    if needs_storage_session {
-        shims.push(create_storage_session_compat());
-    }
-    
-    // Check if we need sidePanel compatibility
-    let needs_sidepanel = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| content.contains("sidePanel"))
-                .unwrap_or(false)
-        });
-    
-    if needs_sidepanel {
-        shims.push(create_sidepanel_compat());
-    }
-    
-    // Check if we need declarativeNetRequest stub
-    let needs_dnr = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| content.contains("declarativeNetRequest"))
-                .unwrap_or(false)
-        });
-    
-    if needs_dnr {
-        shims.push(create_declarative_net_request_stub());
-    }
-    
-    // Check if we need userScripts compatibility
-    let needs_user_scripts = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| content.contains("userScripts"))
-                .unwrap_or(false)
-        });
-    
-    if needs_user_scripts {
-        shims.push(create_user_scripts_compat());
-    }
-    
-    // Check if we need tabs/windows legacy API shims
-    let needs_legacy_tabs = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| {
-                    content.contains("tabs.getSelected") ||
-                    content.contains("tabs.getAllInWindow") ||
-                    content.contains("windows.create")
-                })
-                .unwrap_or(false)
-        });
-    
-    if needs_legacy_tabs {
-        shims.push(create_tabs_windows_compat());
-    }
-    
-    // Check if we need runtime compatibility stubs
-    let needs_runtime_stubs = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| content.contains("runtime.getPackageDirectoryEntry"))
-                .unwrap_or(false)
-        });
-    
-    if needs_runtime_stubs {
-        shims.push(create_runtime_compat());
-    }
-    
-    // Optional: Check if we need downloads compatibility
-    let needs_downloads = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| {
-                    content.contains("downloads.acceptDanger") ||
-                    content.contains("downloads.setShelfEnabled")
-                })
-                .unwrap_or(false)
-        });
-    
-    if needs_downloads {
-        shims.push(create_downloads_compat());
-    }
-    
-    // Optional: Check if we need privacy API stubs
-    let needs_privacy = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| content.contains("chrome.privacy"))
-                .unwrap_or(false)
-        });
-    
-    if needs_privacy {
-        shims.push(create_privacy_stub());
-    }
-    
-    // Optional: Check if we need notifications compatibility
-    let needs_notifications = context.source
-        .get_javascript_files()
-        .iter()
-        .any(|path| {
-            context.source.get_file_content(path)
-                .map(|content| {
-                    content.contains("notifications.create") &&
-                    (content.contains("buttons:") || content.contains("imageUrl:"))
-                })
-                .unwrap_or(false)
-        });
-    
-    if needs_notifications {
-        shims.push(create_notifications_compat());
-    }
+    // Always include all shims - they have runtime guards and self-activate
+    // This is simpler than parsing JS files to detect usage
+    // NOTE: No importScripts polyfill needed - we extract and add scripts to manifest instead!
+    shims.push(create_storage_session_compat());
+    shims.push(create_execute_script_compat());  // NEW: Runtime interceptor
+    shims.push(create_sidepanel_compat());
+    shims.push(create_declarative_net_request_stub());
+    shims.push(create_user_scripts_compat());
+    shims.push(create_tabs_windows_compat());
+    shims.push(create_runtime_compat());
+    shims.push(create_downloads_compat());
+    shims.push(create_privacy_stub());
+    shims.push(create_notifications_compat());
     
     Ok(shims)
 }
 
-fn create_browser_polyfill() -> NewFile {
-    let content = r#"// Browser namespace polyfill for Chrome compatibility
-// This allows the extension to work in both Chrome and Firefox
-
-if (typeof browser === 'undefined') {
-  // Chrome doesn't have 'browser' namespace, so we create it
-  window.browser = window.chrome;
-}
-
-// Export for module usage
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = browser;
-}
-"#;
-    
-    NewFile {
-        path: PathBuf::from("shims/browser-polyfill.js"),
-        content: content.to_string(),
-        purpose: "Provides browser namespace compatibility between Chrome and Firefox".to_string(),
-    }
-}
-
-fn create_promise_wrapper() -> NewFile {
-    let content = r#"// Promise wrapper for callback-based Chrome APIs
-// Converts Chrome's callback-style APIs to promise-based for Firefox compatibility
-
-/**
- * Wraps a Chrome API function to return a Promise instead of using callbacks
- * @param {Function} fn - The Chrome API function to wrap
- * @returns {Function} A function that returns a Promise
- */
-function promisify(fn) {
-  return function(...args) {
-    return new Promise((resolve, reject) => {
-      fn(...args, (...results) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve(results.length === 1 ? results[0] : results);
-        }
-      });
-    });
-  };
-}
-
-/**
- * Promisified versions of common Chrome APIs
- */
-const promisifiedAPIs = {
-  storage: {
-    local: {
-      get: promisify(chrome.storage.local.get.bind(chrome.storage.local)),
-      set: promisify(chrome.storage.local.set.bind(chrome.storage.local)),
-      remove: promisify(chrome.storage.local.remove.bind(chrome.storage.local)),
-      clear: promisify(chrome.storage.local.clear.bind(chrome.storage.local)),
-    },
-    sync: {
-      get: promisify(chrome.storage.sync.get.bind(chrome.storage.sync)),
-      set: promisify(chrome.storage.sync.set.bind(chrome.storage.sync)),
-      remove: promisify(chrome.storage.sync.remove.bind(chrome.storage.sync)),
-      clear: promisify(chrome.storage.sync.clear.bind(chrome.storage.sync)),
-    }
-  },
-  tabs: {
-    query: promisify(chrome.tabs.query.bind(chrome.tabs)),
-    get: promisify(chrome.tabs.get.bind(chrome.tabs)),
-    create: promisify(chrome.tabs.create.bind(chrome.tabs)),
-    update: promisify(chrome.tabs.update.bind(chrome.tabs)),
-    remove: promisify(chrome.tabs.remove.bind(chrome.tabs)),
-  },
-  runtime: {
-    sendMessage: promisify(chrome.runtime.sendMessage.bind(chrome.runtime)),
-  }
-};
-
-// Export for module usage
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { promisify, promisifiedAPIs };
-}
-"#;
-    
-    NewFile {
-        path: PathBuf::from("shims/promise-wrapper.js"),
-        content: content.to_string(),
-        purpose: "Converts callback-based Chrome APIs to promise-based for Firefox".to_string(),
-    }
-}
-
-fn create_action_compat() -> NewFile {
-    let content = r#"// Action API compatibility shim
-// Provides compatibility between MV2 browser_action and MV3 action APIs
-
-const browserAction = chrome.action || chrome.browserAction;
-
-// Unified API that works with both
-const actionAPI = {
-  setIcon: (details) => browserAction.setIcon(details),
-  setTitle: (details) => browserAction.setTitle(details),
-  setBadgeText: (details) => browserAction.setBadgeText(details),
-  setBadgeBackgroundColor: (details) => browserAction.setBadgeBackgroundColor(details),
-  setPopup: (details) => browserAction.setPopup(details),
-  getTitle: (details) => browserAction.getTitle(details),
-  getPopup: (details) => browserAction.getPopup(details),
-  getBadgeText: (details) => browserAction.getBadgeText(details),
-  getBadgeBackgroundColor: (details) => browserAction.getBadgeBackgroundColor(details),
-};
-
-// Export for module usage
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = actionAPI;
-}
-"#;
-    
-    NewFile {
-        path: PathBuf::from("shims/action-compat.js"),
-        content: content.to_string(),
-        purpose: "Provides compatibility between browser_action and action APIs".to_string(),
-    }
-}
+// NOTE: We removed browser-polyfill.js, promise-wrapper.js, action-compat.js, and import-scripts-polyfill.js
+// because:
+// - Firefox natively supports chrome.* namespace and handles promises automatically
+// - importScripts() is handled by extracting calls and adding scripts directly to manifest (SAFE!)
 
 fn create_storage_session_compat() -> NewFile {
     let content = r#"// Storage session compatibility shim
@@ -302,6 +49,8 @@ fn create_storage_session_compat() -> NewFile {
 
 (function() {
   'use strict';
+  
+  const api = typeof browser !== 'undefined' ? browser : chrome;
   
   // In-memory storage for session data
   const sessionStore = new Map();
@@ -393,9 +142,10 @@ fn create_storage_session_compat() -> NewFile {
     }
   };
   
-  // Attach polyfill to chrome/browser objects
-  if (api.storage && !api.storage.session) {
+  // Attach polyfill to chrome/browser objects (cross-browser)
+  if (api && api.storage && !api.storage.session) {
     api.storage.session = storageSessionCompat;
+    console.info('✅ storage.session polyfill loaded (cross-browser)');
   }
 })();
 "#;
@@ -403,7 +153,71 @@ fn create_storage_session_compat() -> NewFile {
     NewFile {
         path: PathBuf::from("shims/storage-session-compat.js"),
         content: content.to_string(),
-        purpose: "Provides in-memory fallback for chrome.storage.session API".to_string(),
+        purpose: "Provides in-memory fallback for chrome.storage.session API (cross-browser)".to_string(),
+    }
+}
+
+/// Create executeScript parameter fix via runtime interception
+/// Fixes the 'function' → 'func' parameter difference between Chrome and Firefox
+fn create_execute_script_compat() -> NewFile {
+    let content = r#"// executeScript parameter compatibility fix
+// Chrome uses 'function', Firefox uses 'func' parameter
+// This runtime interceptor makes extensions work in BOTH browsers
+
+(function() {
+  'use strict';
+  
+  const api = typeof browser !== 'undefined' ? browser : chrome;
+  
+  if (api && api.tabs && api.tabs.executeScript) {
+    // Save original function
+    if (!api.tabs.__executeScript) {
+      api.tabs.__executeScript = api.tabs.executeScript;
+      
+      // Intercept and fix parameter names
+      api.tabs.executeScript = function(tabId, details, callback) {
+        const fixedDetails = { ...details };
+        
+        // Firefox uses 'func', Chrome uses 'function'
+        if (details.function && !details.func) {
+          fixedDetails.func = details.function;
+          delete fixedDetails.function;
+        }
+        
+        // Call original with fixed parameters
+        return api.tabs.__executeScript(tabId, fixedDetails, callback);
+      };
+      
+      console.info('✅ executeScript cross-browser compatibility enabled');
+    }
+  }
+  
+  // Also fix scripting.executeScript if it exists (Manifest V3)
+  if (api && api.scripting && api.scripting.executeScript) {
+    if (!api.scripting.__executeScript) {
+      api.scripting.__executeScript = api.scripting.executeScript;
+      
+      api.scripting.executeScript = function(injection) {
+        const fixedInjection = { ...injection };
+        
+        if (fixedInjection.func === undefined && fixedInjection.function) {
+          fixedInjection.func = fixedInjection.function;
+          delete fixedInjection.function;
+        }
+        
+        return api.scripting.__executeScript(fixedInjection);
+      };
+      
+      console.info('✅ scripting.executeScript cross-browser compatibility enabled');
+    }
+  }
+})();
+"#;
+    
+    NewFile {
+        path: PathBuf::from("shims/execute-script-compat.js"),
+        content: content.to_string(),
+        purpose: "Runtime interceptor for executeScript parameter compatibility (cross-browser)".to_string(),
     }
 }
 
@@ -414,7 +228,10 @@ fn create_sidepanel_compat() -> NewFile {
 (function() {
   'use strict';
   
-  if (typeof chrome !== 'undefined' && !chrome.sidePanel && typeof browser !== 'undefined' && browser.sidebarAction) {
+  const api = typeof browser !== 'undefined' ? browser : chrome;
+  
+  // Only activate in Firefox where sidePanel doesn't exist but sidebarAction does
+  if (api && !api.sidePanel && typeof browser !== 'undefined' && browser.sidebarAction) {
     console.info('⚙️ sidePanel compatibility shim loaded - using Firefox sidebar API');
     
     const sidePanelCompat = {
@@ -474,8 +291,9 @@ fn create_sidepanel_compat() -> NewFile {
       }
     };
     
-    if (typeof chrome !== 'undefined') chrome.sidePanel = sidePanelCompat;
-    if (typeof browser !== 'undefined') browser.sidePanel = sidePanelCompat;
+    // Make available to both namespaces (cross-browser)
+    if (typeof chrome !== 'undefined' && !chrome.sidePanel) chrome.sidePanel = sidePanelCompat;
+    if (typeof browser !== 'undefined' && !browser.sidePanel) browser.sidePanel = sidePanelCompat;
   }
 })();
 "#;
@@ -483,7 +301,7 @@ fn create_sidepanel_compat() -> NewFile {
     NewFile {
         path: PathBuf::from("shims/sidepanel-compat.js"),
         content: content.to_string(),
-        purpose: "Maps Chrome's sidePanel API to Firefox's sidebarAction".to_string(),
+        purpose: "Maps Chrome's sidePanel API to Firefox's sidebarAction (cross-browser)".to_string(),
     }
 }
 
@@ -494,11 +312,12 @@ fn create_declarative_net_request_stub() -> NewFile {
 (function() {
   'use strict';
   
-  console.info('🔄 declarativeNetRequest → webRequest converter loaded');
-  
   const api = typeof browser !== 'undefined' ? browser : chrome;
   
-  if (!api.declarativeNetRequest) {
+  // Only activate if DNR doesn't exist (Firefox) or needs conversion
+  if (api && !api.declarativeNetRequest) {
+    console.info('🔄 declarativeNetRequest → webRequest converter loaded');
+    
     // Storage for rules
     const dynamicRules = new Map();
     const sessionRules = new Map();
@@ -979,10 +798,15 @@ fn create_declarative_net_request_stub() -> NewFile {
       MAX_NUMBER_OF_REGEX_RULES: 1000
     };
     
-    if (typeof chrome !== 'undefined') chrome.declarativeNetRequest = dnrCompat;
-    if (typeof browser !== 'undefined') browser.declarativeNetRequest = dnrCompat;
+    // Make available to both namespaces (cross-browser)
+    if (typeof chrome !== 'undefined' && !chrome.declarativeNetRequest) {
+      chrome.declarativeNetRequest = dnrCompat;
+    }
+    if (typeof browser !== 'undefined' && !browser.declarativeNetRequest) {
+      browser.declarativeNetRequest = dnrCompat;
+    }
     
-    console.info('✅ DNR → webRequest converter ready');
+    console.info('✅ DNR → webRequest converter ready (cross-browser)');
     console.info('💡 Supported: block, redirect, modifyHeaders, upgradeScheme');
   }
 })();
@@ -991,7 +815,7 @@ fn create_declarative_net_request_stub() -> NewFile {
     NewFile {
         path: PathBuf::from("shims/declarative-net-request-stub.js"),
         content: content.to_string(),
-        purpose: "Converts declarativeNetRequest rules to webRequest listeners automatically".to_string(),
+        purpose: "Converts declarativeNetRequest rules to webRequest listeners automatically (cross-browser)".to_string(),
     }
 }
 
@@ -1002,8 +826,11 @@ fn create_user_scripts_compat() -> NewFile {
 (function() {
   'use strict';
   
-  if (typeof chrome !== 'undefined' && !chrome.userScripts && typeof browser !== 'undefined') {
-    console.info('⚙️ userScripts compatibility shim loaded');
+  const api = typeof browser !== 'undefined' ? browser : chrome;
+  
+  // Only activate if userScripts doesn't exist
+  if (api && !api.userScripts && typeof browser !== 'undefined') {
+    console.info('⚙️ userScripts compatibility shim loaded (cross-browser)');
     
     const userScriptsCompat = {
       register: async function(scripts) {
@@ -1037,7 +864,10 @@ fn create_user_scripts_compat() -> NewFile {
       }
     };
     
-    if (typeof chrome !== 'undefined') chrome.userScripts = userScriptsCompat;
+    // Make available to both namespaces (cross-browser)
+    if (typeof chrome !== 'undefined' && !chrome.userScripts) {
+      chrome.userScripts = userScriptsCompat;
+    }
     if (typeof browser !== 'undefined' && !browser.userScripts) {
       browser.userScripts = userScriptsCompat;
     }
@@ -1048,7 +878,7 @@ fn create_user_scripts_compat() -> NewFile {
     NewFile {
         path: PathBuf::from("shims/user-scripts-compat.js"),
         content: content.to_string(),
-        purpose: "Maps Chrome's userScripts API to Firefox's equivalent".to_string(),
+        purpose: "Maps Chrome's userScripts API to Firefox's equivalent (cross-browser)".to_string(),
     }
 }
 
@@ -1131,14 +961,14 @@ fn create_tabs_windows_compat() -> NewFile {
     };
   }
   
-  console.info('✅ Legacy tabs/windows API compatibility loaded');
+  console.info('✅ Legacy tabs/windows API compatibility loaded (cross-browser)');
 })();
 "#;
     
     NewFile {
         path: PathBuf::from("shims/tabs-windows-compat.js"),
         content: content.to_string(),
-        purpose: "Provides compatibility for legacy tabs/windows APIs".to_string(),
+        purpose: "Provides compatibility for legacy tabs/windows APIs (cross-browser)".to_string(),
     }
 }
 
@@ -1178,33 +1008,14 @@ fn create_runtime_compat() -> NewFile {
     }
   }
   
-  console.info('✅ Runtime API compatibility loaded');
+  console.info('✅ Runtime API compatibility loaded (cross-browser)');
 })();
 "#;
     
     NewFile {
         path: PathBuf::from("shims/runtime-compat.js"),
         content: content.to_string(),
-        purpose: "Stubs Chrome-specific runtime methods for Firefox".to_string(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_browser_polyfill_generation() {
-        let polyfill = create_browser_polyfill();
-        assert!(polyfill.content.contains("typeof browser === 'undefined'"));
-        assert_eq!(polyfill.path, PathBuf::from("shims/browser-polyfill.js"));
-    }
-    
-    #[test]
-    fn test_promise_wrapper_generation() {
-        let wrapper = create_promise_wrapper();
-        assert!(wrapper.content.contains("promisify"));
-        assert!(wrapper.content.contains("chrome.runtime.lastError"));
+        purpose: "Stubs Chrome-specific runtime methods (cross-browser)".to_string(),
     }
 }
 
@@ -1251,14 +1062,14 @@ fn create_downloads_compat() -> NewFile {
     };
   }
   
-  console.info('✅ Downloads API compatibility loaded');
+  console.info('✅ Downloads API compatibility loaded (cross-browser)');
 })();
 "#;
     
     NewFile {
         path: PathBuf::from("shims/downloads-compat.js"),
         content: content.to_string(),
-        purpose: "Provides compatibility for Chrome-specific downloads features".to_string(),
+        purpose: "Provides compatibility for Chrome-specific downloads features (cross-browser)".to_string(),
     }
 }
 
@@ -1269,10 +1080,13 @@ fn create_privacy_stub() -> NewFile {
 (function() {
   'use strict';
   
-  console.warn('⚠️ Privacy API stub loaded');
-  console.warn('⚠️ Firefox has different privacy settings architecture');
+  const api = typeof browser !== 'undefined' ? browser : chrome;
   
-  if (typeof chrome !== 'undefined' && !chrome.privacy) {
+  // Only activate if privacy API doesn't exist
+  if (api && !api.privacy) {
+    console.warn('⚠️ Privacy API stub loaded (cross-browser)');
+    console.warn('⚠️ Firefox has different privacy settings architecture');
+    
     const privacyStub = {
       network: {
         networkPredictionEnabled: {
@@ -1360,10 +1174,15 @@ fn create_privacy_stub() -> NewFile {
       }
     };
     
-    if (typeof chrome !== 'undefined') chrome.privacy = privacyStub;
-    if (typeof browser !== 'undefined') browser.privacy = privacyStub;
+    // Make available to both namespaces (cross-browser)
+    if (typeof chrome !== 'undefined' && !chrome.privacy) {
+      chrome.privacy = privacyStub;
+    }
+    if (typeof browser !== 'undefined' && !browser.privacy) {
+      browser.privacy = privacyStub;
+    }
     
-    console.info('💡 Use Firefox\'s about:preferences for privacy settings');
+    console.info('💡 Use browser preferences for privacy settings');
   }
 })();
 "#;
@@ -1371,7 +1190,7 @@ fn create_privacy_stub() -> NewFile {
     NewFile {
         path: PathBuf::from("shims/privacy-stub.js"),
         content: content.to_string(),
-        purpose: "Stubs chrome.privacy API which is not available in Firefox".to_string(),
+        purpose: "Stubs chrome.privacy API which is not available in Firefox (cross-browser)".to_string(),
     }
 }
 
@@ -1436,7 +1255,7 @@ fn create_notifications_compat() -> NewFile {
       return await originalCreate.call(this, notificationId, adaptedOptions);
     };
     
-    console.info('✅ Notifications API compatibility loaded');
+    console.info('✅ Notifications API compatibility loaded (cross-browser)');
   }
 })();
 "#;
@@ -1444,6 +1263,39 @@ fn create_notifications_compat() -> NewFile {
     NewFile {
         path: PathBuf::from("shims/notifications-compat.js"),
         content: content.to_string(),
-        purpose: "Adapts Chrome notification options to Firefox capabilities".to_string(),
+        purpose: "Adapts Chrome notification options to Firefox capabilities (cross-browser)".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_storage_session_shim_generation() {
+        let shim = create_storage_session_compat();
+        assert!(shim.content.contains("sessionStore"));
+        assert_eq!(shim.path, PathBuf::from("shims/storage-session-compat.js"));
+    }
+    
+    #[test]
+    fn test_sidepanel_shim_generation() {
+        let shim = create_sidepanel_compat();
+        assert!(shim.content.contains("sidebarAction"));
+        assert!(shim.content.contains("sidePanel"));
+    }
+    
+    #[test]
+    fn test_declarative_net_request_converter() {
+        let shim = create_declarative_net_request_stub();
+        assert!(shim.content.contains("webRequest"));
+        assert!(shim.content.contains("declarativeNetRequest"));
+    }
+    
+    #[test]
+    fn test_execute_script_shim_generation() {
+        let shim = create_execute_script_compat();
+        assert!(shim.content.contains("executeScript"));
+        assert!(shim.content.contains("cross-browser"));
     }
 }

@@ -1,132 +1,90 @@
-//! AST-based JavaScript/TypeScript transformer
-//! 
-//! Production-grade transformer using SWC for accurate Chrome → Firefox conversion.
-//! Provides superior accuracy and TypeScript support.
+//! JavaScript pass-through transformer
+//!
+//! NOTE: Firefox natively supports chrome.* namespace, so no transformation needed!
+//!
+//! Assumptions:
+//! - Extensions are pre-compiled from TypeScript to JavaScript
+//! - Runtime shims handle all API compatibility
+//! - No code transformation needed - just pass through
 
-use crate::models::{ModifiedFile, FileChange, ChangeType, SelectedDecision};
-use crate::transformer::ast::{AstTransformer as CoreAstTransformer};
+use crate::models::{ModifiedFile, FileChange, SelectedDecision};
 use anyhow::Result;
 use std::path::PathBuf;
 
-/// AST-based JavaScript transformer for Chrome to Firefox conversion
+/// Simple pass-through transformer (no AST parsing needed!)
 pub struct JavaScriptTransformer {
     _decisions: Vec<SelectedDecision>,
-    transformer: CoreAstTransformer,
-    last_generated_handlers: Vec<String>,
 }
 
 impl JavaScriptTransformer {
-    /// Create a new AST-based transformer
+    /// Create a new pass-through transformer
     pub fn new(decisions: &[SelectedDecision]) -> Self {
         Self {
             _decisions: decisions.to_vec(),
-            transformer: CoreAstTransformer::new(),
-            last_generated_handlers: Vec::new(),
         }
     }
     
-    /// Get handlers generated during the last transform
+    /// Get handlers generated during the last transform (always empty now)
     pub fn get_generated_handlers(&self) -> Option<Vec<String>> {
-        if self.last_generated_handlers.is_empty() {
-            None
-        } else {
-            Some(self.last_generated_handlers.clone())
-        }
+        None
     }
     
-    /// Transform with handler injection for content scripts
-    pub fn transform_with_handlers(&mut self, content: &str, path: &PathBuf, handlers: &[String]) -> Result<ModifiedFile> {
+    /// Pass-through with handler injection (simple string concatenation)
+    pub fn transform_with_handlers(&mut self, content: &str, _path: &PathBuf, handlers: &[String]) -> Result<ModifiedFile> {
         let original_content = content.to_string();
         
-        // Use the transformer's handler injection method
-        let new_content = self.transformer.transform_with_handlers(content, path, handlers)?;
+        // Simple string concatenation - prepend handlers
+        let mut new_content = String::new();
+        for handler in handlers {
+            new_content.push_str(handler);
+            new_content.push('\n');
+        }
+        new_content.push_str(content);
         
-        // Generate change description
-        let mut changes = vec![
+        let changes = vec![
             FileChange {
                 line_number: 1,
-                change_type: ChangeType::Addition,
-                description: format!("Injected {} auto-generated executeScript handler(s)", handlers.len()),
+                change_type: crate::models::ChangeType::Addition,
+                description: format!("Injected {} handler(s) at top of file", handlers.len()),
                 old_code: None,
                 new_code: None,
             }
         ];
         
-        // Add other transformations
-        if new_content.contains("browser.") && !original_content.contains("browser.") {
-            changes.push(FileChange {
-                line_number: 1,
-                change_type: ChangeType::Modification,
-                description: "Converted chrome.* calls to browser.*".to_string(),
-                old_code: None,
-                new_code: None,
-            });
-        }
-        
         Ok(ModifiedFile {
-            path: path.clone(),
+            path: _path.clone(),
             original_content,
             new_content,
             changes,
         })
     }
     
-    /// Transform JavaScript/TypeScript code from Chrome to Firefox compatibility
+    /// Simple pass-through with importScripts() removal
     pub fn transform(&mut self, content: &str, path: &PathBuf) -> Result<ModifiedFile> {
         let original_content = content.to_string();
-        
-        // Perform AST transformation
-        let new_content = self.transformer.transform(content, path)?;
-        
-        // Store any generated handlers for later injection
-        self.last_generated_handlers = self.transformer.get_generated_handlers();
-        
-        // Generate change description
+        let mut new_content = content.to_string();
         let mut changes = Vec::new();
         
-        // Analyze what changed
-        if new_content != original_content {
-            // Count transformations
-            let chrome_count = original_content.matches("chrome.").count();
-            let browser_count = new_content.matches("browser.").count();
-            let transformed_count = browser_count.saturating_sub(original_content.matches("browser.").count());
+        // Check if this is a background script that might have importScripts()
+        let is_background = path.to_string_lossy().contains("background");
+        
+        if is_background {
+            // Remove or comment out importScripts() calls
+            // These scripts are now loaded via manifest.background.scripts
+            let import_scripts_pattern = regex::Regex::new(r"(?m)^\s*importScripts\s*\([^)]*\)\s*;?\s*$").unwrap();
             
-            if transformed_count > 0 {
+            if import_scripts_pattern.is_match(&new_content) {
+                // Comment out the lines instead of removing (safer)
+                new_content = import_scripts_pattern.replace_all(&new_content, |caps: &regex::Captures| {
+                    format!("// {} // Moved to manifest.background.scripts for Firefox compatibility", &caps[0].trim())
+                }).to_string();
+                
                 changes.push(FileChange {
-                    line_number: 1,
-                    change_type: ChangeType::Modification,
-                    description: format!("Converted {} chrome.* calls to browser.*", transformed_count),
+                    line_number: 0,
+                    change_type: crate::models::ChangeType::Modification,
+                    description: "Commented out importScripts() calls (scripts now loaded via manifest)".to_string(),
                     old_code: None,
                     new_code: None,
-                });
-            }
-            
-            // Check if TypeScript was stripped
-            if path.extension().map_or(false, |e| e == "ts" || e == "tsx") {
-                let had_types = original_content.contains(": ") && 
-                               (original_content.contains("string") || 
-                                original_content.contains("number") ||
-                                original_content.contains("boolean"));
-                                
-                if had_types && !new_content.contains(": string") {
-                    changes.push(FileChange {
-                        line_number: 1,
-                        change_type: ChangeType::Modification,
-                        description: "Stripped TypeScript type annotations".to_string(),
-                        old_code: None,
-                        new_code: None,
-                    });
-                }
-            }
-            
-            // Add polyfill if chrome APIs were used
-            if chrome_count > 0 && !original_content.contains("typeof browser === 'undefined'") {
-                changes.push(FileChange {
-                    line_number: 1,
-                    change_type: ChangeType::Addition,
-                    description: "Added browser namespace polyfill".to_string(),
-                    old_code: None,
-                    new_code: Some("Browser namespace compatibility check".to_string()),
                 });
             }
         }
@@ -152,9 +110,8 @@ mod tests {
         
         let result = transformer.transform(code, &path).unwrap();
         
-        assert!(result.new_content.contains("browser.storage"));
-        assert!(!result.new_content.contains("chrome.storage"));
-        assert!(!result.changes.is_empty());
+        // chrome.* should remain unchanged (Firefox supports it natively)
+        assert!(result.new_content.contains("chrome.storage"));
     }
     
     #[test]
@@ -165,10 +122,10 @@ mod tests {
         
         let result = transformer.transform(code, &path).unwrap();
         
-        // Should strip types and transform chrome
-        assert!(result.new_content.contains("browser.runtime"));
-        assert!(!result.new_content.contains(": string"));
-        assert!(result.changes.iter().any(|c| c.description.contains("TypeScript")));
+        // Should keep chrome.* unchanged (Firefox supports it natively)
+        assert!(result.new_content.contains("chrome.runtime"));
+        // Note: TypeScript stripping is not implemented as extensions are typically
+        // pre-compiled to JS before packaging. Users should compile TS first.
     }
     
     #[test]

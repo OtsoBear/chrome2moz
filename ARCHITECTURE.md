@@ -1,20 +1,25 @@
 # Chrome2Moz Architecture Documentation
 
-> **A sophisticated Chrome Manifest V3 to Firefox extension converter**  
-> Built with Rust, powered by AST transformations, designed for precision
+> **Focused Chrome to Firefox extension converter**
+> Built with Rust, designed for real incompatibilities
 
 ---
 
 ## Executive Summary
 
-Chrome2Moz is a production-ready, AST-based extension converter using semantic code analysis. Unlike simple find-replace tools, it understands JavaScript/TypeScript at the syntax tree level, performing scope-aware transformations.
+Chrome2Moz converts Chrome extensions to Firefox by handling **actual incompatibilities**, not artificial namespace differences.
+
+**Key Understanding**: Firefox natively supports `chrome.*` namespace! This tool focuses on:
+1. Chrome-only APIs that don't exist in Firefox
+2. Manifest format differences
+3. Behavior differences (URL resolution, etc.)
 
 **Key Features:**
-- **AST-Based**: Uses SWC (Speedy Web Compiler) for semantic analysis
-- **Scope-Aware**: Distinguishes local variables from global Chrome APIs
+- **Smart Detection**: Identifies Chrome-only APIs requiring conversion
+- **Pass-Through Approach**: JavaScript unchanged, runtime shims handle compatibility
+- **Runtime Shims**: 10 compatibility layers for Chrome-only APIs
 - **Multi-Target**: CLI tool, WASM library, and web interface
-- **Fast**: Efficient processing of medium to large extensions
-- **Chrome-Only API Conversion**: Automated conversion for [`chrome.offscreen`](src/analyzer/offscreen.rs), [`chrome.declarativeContent`](src/analyzer/declarative_content.rs), and [`chrome.tabGroups`](src/transformer/tab_groups.rs)
+- **importScripts() Handling**: Automatic detection and manifest integration
 
 ---
 
@@ -23,13 +28,12 @@ Chrome2Moz is a production-ready, AST-based extension converter using semantic c
 1. [Project Structure](#project-structure)
 2. [Architecture Overview](#architecture-overview)
 3. [Core Components](#core-components)
-4. [AST Transformation Engine](#ast-transformation-engine)
-5. [Chrome-Only API Conversion](#chrome-only-api-conversion)
-6. [Shim System](#shim-system)
-7. [Manifest Transformation](#manifest-transformation)
-8. [CLI & WASM](#cli--wasm)
-9. [Design Decisions](#design-decisions)
-10. [API Compatibility Matrix](#api-compatibility-matrix)
+4. [Shim System](#shim-system)
+5. [Manifest Transformation](#manifest-transformation)
+6. [importScripts() Handling](#importscripts-handling)
+7. [CLI & WASM](#cli--wasm)
+8. [Design Decisions](#design-decisions)
+9. [API Compatibility Matrix](#api-compatibility-matrix)
 
 ---
 
@@ -50,33 +54,22 @@ chrome2moz/
 │   │   └── chrome_only.rs         # Chrome-only API models
 │   │
 │   ├── parser/                    # Input parsing
-│   │   ├── manifest.rs            # manifest.json parser
-│   │   └── javascript.rs          # Legacy (deprecated)
+│   │   └── manifest.rs            # manifest.json parser
 │   │
 │   ├── analyzer/                  # Compatibility analysis
 │   │   ├── api.rs                 # Chrome-only API detection
 │   │   ├── manifest.rs            # Manifest compatibility
-│   │   ├── offscreen.rs           # Offscreen document analyzer
+│   │   ├── offscreen.rs           # Offscreen document analyzer (regex)
 │   │   └── declarative_content.rs # DeclarativeContent analyzer
 │   │
 │   ├── transformer/               # Code transformation
-│   │   ├── manifest.rs            # Manifest transformations
-│   │   ├── javascript.rs          # JS transformer (AST-based)
-│   │   ├── shims.rs               # Shim generation
+│   │   ├── manifest.rs            # Manifest transformations + importScripts()
+│   │   ├── javascript.rs          # Pass-through (comments out importScripts)
+│   │   ├── shims.rs               # 10 runtime compatibility shims
 │   │   ├── chrome_only_converter.rs # Chrome-only API coordinator
 │   │   ├── offscreen_converter.rs   # Offscreen conversions
 │   │   ├── declarative_content_converter.rs
-│   │   ├── tab_groups.rs          # TabGroups stub
-│   │   │
-│   │   └── ast/                   # AST subsystem
-│   │       ├── parser.rs          # SWC parsing
-│   │       ├── visitor.rs         # chrome → browser
-│   │       ├── callback.rs        # Callback → Promise
-│   │       ├── execute_script.rs  # executeScript fixes
-│   │       ├── module_detector.rs # ESM/CommonJS detection
-│   │       ├── polyfill.rs        # Polyfill injection
-│   │       ├── scope.rs           # Scope analysis
-│   │       └── codegen.rs         # Code generation
+│   │   └── tab_groups.rs          # TabGroups stub
 │   │
 │   ├── packager/                  # Output generation
 │   │   ├── extractor.rs           # CRX/ZIP extraction
@@ -99,22 +92,22 @@ chrome2moz/
 
 ## Architecture Overview
 
-### Conversion Pipeline
+### Pass-Through Pipeline
 
 ```mermaid
 flowchart TD
     A[Input: CRX/ZIP/Directory] --> B[Extract & Parse]
-    B --> C[Analyze Compatibility]
-    C --> D[Transform Code]
+    B --> C[Analyze]
+    C --> D[Transform Manifest]
     
-    subgraph Transform["Transformation"]
-        D1[Manifest Transform]
-        D2[AST Transform]
-        D3[Chrome-Only API Convert]
+    subgraph Transform["Minimal Changes"]
+        D1[Manifest Adjustments]
+        D2[importScripts Detection]
+        D3[Comment importScripts Lines]
     end
     
     D --> Transform
-    Transform --> E[Generate Shims]
+    Transform --> E[Include 10 Runtime Shims]
     E --> F[Package & Validate]
     F --> G[Output: Firefox Extension]
     
@@ -125,10 +118,14 @@ flowchart TD
 ### Data Flow
 
 1. **Extract**: Parse CRX/ZIP → [`Extension`](src/models/extension.rs) struct
-2. **Analyze**: Detect incompatibilities → [`Vec<Incompatibility>`](src/models/incompatibility.rs)
-3. **Transform**: Apply conversions → Modified manifest + code
-4. **Generate**: Create shims → Compatibility layer
+2. **Analyze**: Detect Chrome-only APIs → [`Vec<Incompatibility>`](src/models/incompatibility.rs)
+3. **Transform**:
+   - Manifest adjustments (service worker, permissions, importScripts)
+   - JavaScript pass-through (comments out importScripts() only)
+4. **Generate**: Include all 10 runtime shims (always)
 5. **Package**: Build output → XPI + report
+
+**Note**: JavaScript passes through unchanged! Runtime shims handle all compatibility.
 
 ---
 
@@ -175,15 +172,20 @@ pub enum Severity {
 
 ### 4. Transformer ([`src/transformer/`](src/transformer/))
 
-**[`javascript.rs`](src/transformer/javascript.rs)**: Orchestrates AST pipeline
-- Parse → Transform → Generate
-- Multiple visitor passes
-- URL replacement post-processing
+**[`javascript.rs`](src/transformer/javascript.rs)**: Pass-through with importScripts() handling
+- Detects importScripts() calls in background scripts
+- Comments them out with explanation
+- No other JavaScript transformations
 
-**[`chrome_only_converter.rs`](src/transformer/chrome_only_converter.rs)**: Coordinates Chrome-only API conversions
-- Offscreen API conversion
-- DeclarativeContent conversion
-- TabGroups stub generation
+**[`manifest.rs`](src/transformer/manifest.rs)**: Manifest + importScripts() integration
+- Extracts script names from importScripts() calls (regex)
+- Adds scripts to manifest.background.scripts in correct order
+- Service worker → event page conversion
+
+**[`shims.rs`](src/transformer/shims.rs)**: 10 runtime compatibility shims
+- Always included for maximum compatibility
+- Handle Chrome-only APIs at runtime
+- Cross-browser compatible (work in both Chrome and Firefox)
 
 ### 5. Packager ([`src/packager/`](src/packager/))
 
@@ -193,125 +195,65 @@ pub enum Severity {
 
 ---
 
-## AST Transformation Engine
-
-### Architecture
-
-```mermaid
-flowchart LR
-    A[JavaScript] --> B[Parser<br/>SWC]
-    B --> C[Module Detector<br/>ESM/CommonJS/Script]
-    C --> D[Scope Analyzer<br/>Track variables]
-    D --> E[Visitors<br/>Transform AST]
-    E --> F[Polyfill Injector]
-    F --> G[Code Generator]
-    G --> H[Transformed JS]
-```
-
-### Key Components
-
-**[`parser.rs`](src/transformer/ast/parser.rs)**: SWC-based parser
-- Auto-detects syntax (JS/TS/JSX/TSX)
-- Comprehensive error recovery
-
-**[`scope.rs`](src/transformer/ast/scope.rs)**: Tracks variable bindings
-```javascript
-// Prevents incorrect transformations
-function test() {
-    let chrome = { custom: 'object' };
-    chrome.custom.method(); // NOT transformed (local variable)
-}
-```
-
-**[`visitor.rs`](src/transformer/ast/visitor.rs)**: Main transformer
-- chrome → browser conversion
-- Scope-aware transformations
-
-**[`execute_script.rs`](src/transformer/ast/execute_script.rs)**: Firefox parameter fixes
-```javascript
-// Chrome:  function: () => {...}
-// Firefox: func: () => {...}
-```
-
-**[`polyfill.rs`](src/transformer/ast/polyfill.rs)**: Smart injection based on module type
-- ESM: `import './browser-polyfill.js';`
-- CommonJS: `require('./browser-polyfill.js');`
-- Script: `if (!browser) browser = chrome;`
-
----
-
-## Chrome-Only API Conversion
-
-Automated conversion system for Chrome-exclusive APIs.
-
-### Supported APIs
-
-| API | Conversion Strategy |
-|-----|-------------------|
-| [`chrome.offscreen`](src/transformer/offscreen_converter.rs) | Canvas→Worker, Audio→Worker, DOM→ContentScript, Network→Background |
-| [`chrome.declarativeContent`](src/transformer/declarative_content_converter.rs) | ContentScript + Messaging |
-| [`chrome.tabGroups`](src/transformer/tab_groups.rs) | No-op stub (prevents crashes) |
-
-### Offscreen Conversion Strategies
-
-**[`OffscreenConverter`](src/transformer/offscreen_converter.rs)** implements 5 strategies:
-
-1. **Canvas → Web Worker**
-   - Transfers canvas control to worker
-   - Uses [`OffscreenCanvas`](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas)
-
-2. **Audio → Audio Worker**
-   - Moves audio processing to worker
-
-3. **Network → Background Integration**
-   - Direct background script usage
-
-4. **DOM → Content Script**
-   - Injects content scripts on target pages
-
-5. **Mixed → Split Conversion**
-   - Creates multiple workers/scripts per purpose
-
-### DeclarativeContent Conversion
-
-**[`DeclarativeContentConverter`](src/transformer/declarative_content_converter.rs)** converts rules:
-
-```javascript
-// Before: declarativeContent rule
-chrome.declarativeContent.onPageChanged.addRules([{
-    conditions: [new chrome.declarativeContent.PageStateMatcher({
-        pageUrl: { hostEquals: 'example.com' },
-        css: ['video']
-    })],
-    actions: [new chrome.declarativeContent.ShowPageAction()]
-}]);
-
-// After: Content script + messaging
-if (document.querySelectorAll('video').length > 0) {
-    browser.runtime.sendMessage({ type: 'page_condition_met' });
-}
-```
-
----
-
 ## Shim System
 
-Dynamic compatibility layer generated based on detected API usage.
+Dynamic compatibility layer included in every conversion.
 
-### Core Shims
+### Runtime Shims (Always Included)
 
-**Always Included** (if `chrome.*` detected):
-- [`browser-polyfill.js`](src/transformer/shims.rs): Basic namespace compatibility
+**[`shims.rs`](src/transformer/shims.rs)** generates 10 compatibility files:
 
-**Conditional Shims**:
-- [`storage-session-compat.js`](src/transformer/shims.rs): In-memory [`chrome.storage.session`](https://developer.chrome.com/docs/extensions/reference/api/storage#property-session) polyfill
-- [`sidepanel-compat.js`](src/transformer/shims.rs): Maps [`sidePanel`](https://developer.chrome.com/docs/extensions/reference/api/sidePanel) → [`sidebarAction`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/sidebarAction)
-- [`declarative-net-request-stub.js`](src/transformer/shims.rs): Stub with [`webRequest`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest) guidance
-- [`tabs-windows-compat.js`](src/transformer/shims.rs): Maps deprecated APIs to modern equivalents
+1. **storage-session-compat.js**: In-memory polyfill for `chrome.storage.session`
+2. **execute-script-compat.js**: Parameter name compatibility
+3. **sidepanel-compat.js**: Maps `chrome.sidePanel` → `sidebarAction`
+4. **declarative-net-request-stub.js**: Stub with guidance
+5. **user-scripts-compat.js**: Maps to contentScripts
+6. **tabs-windows-compat.js**: Compatibility fixes
+7. **runtime-compat.js**: Runtime API compatibility
+8. **downloads-compat.js**: Downloads API fixes
+9. **privacy-stub.js**: No-op stub
+10. **notifications-compat.js**: Notification compatibility
 
-### Selection Algorithm
+**Key Design**: All shims are cross-browser compatible and include runtime checks.
 
-[`determine_required_shims()`](src/transformer/shims.rs) scans code for API usage patterns and conditionally includes matching shims.
+## importScripts() Handling
+
+**Challenge**: Chrome service workers support `importScripts()`, Firefox event pages don't.
+
+**Safe Solution** (no eval, no security risk):
+
+### Detection Phase
+
+**[`extract_imported_scripts()`](src/transformer/manifest.rs)** uses regex:
+1. Reads background.js content
+2. Finds `importScripts('config.js', 'timing.js')` calls
+3. Extracts script names: `['config.js', 'timing.js']`
+4. Works on both commented and uncommented lines
+
+### Manifest Integration
+
+Adds scripts to `manifest.background.scripts` BEFORE background.js:
+```json
+{
+  "background": {
+    "scripts": [
+      "shims/storage-session-compat.js",
+      "config.js",      // ← From importScripts()
+      "timing.js",      // ← From importScripts()
+      "background.js"
+    ]
+  }
+}
+```
+
+### Code Cleanup
+
+**[`javascript.rs`](src/transformer/javascript.rs)** comments out importScripts():
+```javascript
+// importScripts('config.js', 'timing.js'); // Moved to manifest.background.scripts for Firefox compatibility
+```
+
+**Result**: Scripts load in correct order, no `importScripts()` errors, completely safe!
 
 ---
 
@@ -391,36 +333,35 @@ pub fn convert_extension(
 
 ## Design Decisions
 
-### Why AST-Based Transformation?
+### Focused Approach: Real Incompatibilities Only
 
-**Chosen**: SWC for AST parsing and transformation
-
-**Rationale**:
-- Semantic understanding (not just text patterns)
-- Scope awareness (local vs global variables)
-- High accuracy for transformations
-- TypeScript support
-- More complex (acceptable trade-off)
-
-### Why Rust?
-
-**Chosen**: Rust over Node.js/Python
+**Design**: Transform only Chrome-only APIs and manifest differences
 
 **Rationale**:
-- Native performance
-- Type safety prevents bugs
-- WASM compilation
-- Single binary distribution
-- Steeper learning curve (acceptable for contributors)
+- Firefox natively supports `chrome.*` namespace
+- Most extensions work without changes
+- Simpler, more maintainable codebase
+- Faster conversion with fewer edge cases
+- Focus on actual compatibility issues
+
+### Why Keep SWC Parser?
+
+**Chosen**: Keep SWC for TypeScript support and Chrome-only API detection
+
+**Rationale**:
+- TypeScript stripping still needed
+- Accurate Chrome-only API detection
+- Module type detection for proper shim injection
+- Fast and reliable
 
 ### Conditional Shim Generation
 
-**Chosen**: Include shims only when APIs detected
+**Chosen**: Include shims only when Chrome-only APIs detected
 
 **Rationale**:
 - Smaller output size
-- Cleaner code
-- More complex detection logic (acceptable)
+- Only add what's truly needed
+- Chrome-only APIs are the exception, not the rule
 
 ---
 

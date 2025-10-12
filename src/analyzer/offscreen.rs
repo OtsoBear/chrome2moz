@@ -1,35 +1,28 @@
 //! Analyzer for chrome.offscreen API usage
+//! Uses regex-based detection for simplicity (assumes pre-compiled JS)
 
 use crate::models::chrome_only::*;
-use crate::transformer::ast::AstParser;
 use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 pub struct OffscreenAnalyzer {
     source_dir: PathBuf,
-    ast_parser: AstParser,
 }
 
 impl OffscreenAnalyzer {
     pub fn new(source_dir: PathBuf) -> Self {
         Self {
             source_dir,
-            ast_parser: AstParser::new(),
         }
     }
 
-    /// Detect chrome.offscreen API usage in JavaScript code
+    /// Detect chrome.offscreen API usage in JavaScript code using regex
     pub fn detect_usage(&self, code: &str, file_path: &Path) -> Result<Vec<OffscreenUsage>> {
         let mut usages = Vec::new();
         
-        // Parse the code
-        let _ast = self.ast_parser.parse(code, file_path)?;
-        
-        // Look for chrome.offscreen.createDocument calls
-        // This is a simplified detection - in a full implementation,
-        // we would use the AST visitor pattern
-        if code.contains("chrome.offscreen.createDocument") || 
+        // Look for chrome.offscreen.createDocument calls (regex-based)
+        if code.contains("chrome.offscreen.createDocument") ||
            code.contains("browser.offscreen.createDocument") {
             // Extract details from the code
             let lines: Vec<&str> = code.lines().collect();
@@ -104,6 +97,8 @@ impl OffscreenAnalyzer {
     }
 
     fn analyze_script_content(&self, script: &str, analysis: &mut DocumentAnalysis) -> Result<()> {
+        // Regex-based detection (simple pattern matching)
+        
         // Detect canvas operations
         if script.contains("getContext") || script.contains("canvas") || script.contains("OffscreenCanvas") {
             analysis.canvas_operations.push(CanvasOperation {
@@ -144,7 +139,7 @@ impl OffscreenAnalyzer {
             });
         }
         
-        // Detect library imports
+        // Detect library imports (regex-based)
         for dep in self.detect_dependencies(script) {
             if !analysis.dependencies.contains(&dep) {
                 analysis.dependencies.push(dep);

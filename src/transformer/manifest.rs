@@ -3,9 +3,10 @@
 use crate::models::{
     Manifest, BrowserSpecificSettings, GeckoSettings,
     ContentSecurityPolicy, ContentSecurityPolicyV3, WebAccessibleResources,
-    SelectedDecision,
+    SelectedDecision, Extension,
 };
 use anyhow::Result;
+use regex::Regex;
 
 pub struct ManifestTransformer {
     _decisions: Vec<SelectedDecision>,
@@ -18,14 +19,14 @@ impl ManifestTransformer {
         }
     }
     
-    pub fn transform(&self, manifest: &Manifest) -> Result<Manifest> {
+    pub fn transform(&self, manifest: &Manifest, source: Option<&Extension>) -> Result<Manifest> {
         let mut result = manifest.clone();
         
         // 1. Add Firefox-specific settings
         self.add_firefox_settings(&mut result);
         
         // 2. Transform background configuration
-        self.transform_background(&mut result);
+        self.transform_background(&mut result, source);
         
         // 3. Fix permissions structure
         self.transform_permissions(&mut result);
@@ -83,32 +84,87 @@ impl ManifestTransformer {
             .to_string()
     }
     
-    fn transform_background(&self, manifest: &mut Manifest) {
+    fn transform_background(&self, manifest: &mut Manifest, source: Option<&Extension>) {
         if let Some(background) = &mut manifest.background {
-            // If has service_worker but no scripts, add scripts for Firefox
-            if background.service_worker.is_some() && background.scripts.is_none() {
-                background.scripts = background.service_worker.as_ref()
-                    .map(|sw| {
-                        // For event pages, we need to list all scripts that were imported via importScripts()
-                        // Common pattern: config.js, timing.js, then the main script
-                        // We'll add common helper files that are typically imported
-                        let mut scripts = vec![];
-                        
-                        // Add common helper scripts if they might exist
-                        // These will be ignored if they don't exist, but help with common patterns
-                        scripts.push("config.js".to_string());
-                        scripts.push("timing.js".to_string());
-                        scripts.push(sw.clone());
-                        
-                        scripts
-                    });
+            // Build the scripts array with shims FIRST, then original scripts
+            let mut scripts = vec![];
+            
+            // CRITICAL: Add all shims BEFORE the background scripts (no importScripts polyfill needed!)
+            scripts.push("shims/storage-session-compat.js".to_string());
+            scripts.push("shims/execute-script-compat.js".to_string());
+            scripts.push("shims/sidepanel-compat.js".to_string());
+            scripts.push("shims/declarative-net-request-stub.js".to_string());
+            scripts.push("shims/user-scripts-compat.js".to_string());
+            scripts.push("shims/tabs-windows-compat.js".to_string());
+            scripts.push("shims/runtime-compat.js".to_string());
+            scripts.push("shims/downloads-compat.js".to_string());
+            scripts.push("shims/privacy-stub.js".to_string());
+            scripts.push("shims/notifications-compat.js".to_string());
+            
+            // Add original background scripts (and extract importScripts)
+            if let Some(existing_scripts) = &background.scripts {
+                for script in existing_scripts {
+                    // Try to extract importScripts() calls from this script
+                    if let Some(imported) = Self::extract_imported_scripts(script, source) {
+                        // Add imported scripts before the main script
+                        scripts.extend(imported);
+                    }
+                    scripts.push(script.clone());
+                }
+            } else if let Some(sw) = &background.service_worker {
+                // Try to extract importScripts() calls from service worker
+                if let Some(imported) = Self::extract_imported_scripts(sw, source) {
+                    scripts.extend(imported);
+                }
+                scripts.push(sw.clone());
             }
+            
+            background.scripts = Some(scripts);
             
             // IMPORTANT: Remove service_worker for Firefox (not supported)
             background.service_worker = None;
             
             // IMPORTANT: Remove persistent property for Firefox MV3 (not supported)
             background.persistent = None;
+            
+            // IMPORTANT: Remove type field (not supported in Firefox yet)
+            background.type_ = None;
+        }
+    }
+    
+    /// Extract script names from importScripts() calls using regex
+    /// This is SAFE - no eval() needed! We parse the calls and add scripts to manifest.
+    /// Handles both commented and uncommented importScripts() calls.
+    fn extract_imported_scripts(script_path: &str, source: Option<&Extension>) -> Option<Vec<String>> {
+        // Read the script file content
+        let content = source?.get_file_content(&std::path::PathBuf::from(script_path))?;
+        
+        // Match importScripts() calls, including commented out ones
+        // Pattern: optional // comment, then importScripts(...)
+        let re = Regex::new(r#"(?://\s*)?importScripts\s*\([^)]*\)"#).ok()?;
+        
+        let mut imported = Vec::new();
+        
+        // Find all importScripts() calls (commented or not)
+        for call_match in re.find_iter(&content) {
+            let call = call_match.as_str();
+            
+            // Extract each quoted string (file name) from the call
+            let file_re = Regex::new(r#"['"]([^'"]+)['"]"#).ok()?;
+            for file_cap in file_re.captures_iter(call) {
+                if let Some(file) = file_cap.get(1) {
+                    let filename = file.as_str().to_string();
+                    if !imported.contains(&filename) {
+                        imported.push(filename);
+                    }
+                }
+            }
+        }
+        
+        if !imported.is_empty() {
+            Some(imported)
+        } else {
+            None
         }
     }
     
@@ -159,7 +215,7 @@ impl ManifestTransformer {
         // Add wasm-unsafe-eval if needed (check if extension uses WebAssembly)
         if let Some(ContentSecurityPolicy::V3(csp)) = &mut manifest.content_security_policy {
             if let Some(pages) = &mut csp.extension_pages {
-                if !pages.contains("wasm-unsafe-eval") {
+                if !pages.contains("'wasm-unsafe-eval'") {
                     // Add wasm-unsafe-eval to script-src
                     if pages.contains("script-src") {
                         *pages = pages.replace("script-src", "script-src 'wasm-unsafe-eval'");
@@ -167,6 +223,9 @@ impl ManifestTransformer {
                 }
             }
         }
+        
+        // NOTE: We don't add 'unsafe-eval' - it's not needed and reduces security
+        // Instead, we detect importScripts() calls and add those scripts to the manifest
     }
     
     fn transform_action(&self, manifest: &mut Manifest) {

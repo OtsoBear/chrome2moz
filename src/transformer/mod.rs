@@ -1,9 +1,9 @@
 //! Transformation modules for converting Chrome extensions to Firefox
+//! Simplified: No AST transformation, just pass-through with runtime shims
 
 pub mod manifest;
 pub mod javascript;
 pub mod shims;
-pub mod ast;
 pub mod tab_groups;
 pub mod offscreen_converter;
 pub mod declarative_content_converter;
@@ -20,16 +20,16 @@ pub use chrome_only_converter::ChromeOnlyApiConverter;
 use crate::models::{ConversionContext, ConversionResult};
 use anyhow::Result;
 
-/// Main transformation entry point (AST-based)
+/// Main transformation entry point (simplified pass-through)
 pub fn transform_extension(context: ConversionContext) -> Result<ConversionResult> {
     let mut manifest_changes = Vec::new();
     let mut javascript_changes = Vec::new();
     let mut chrome_api_count = 0;
     let mut callback_count = 0;
     
-    // 1. Transform manifest
+    // 1. Transform manifest (pass source for importScripts detection)
     let manifest_transformer = ManifestTransformer::new(&context.selected_decisions);
-    let transformed_manifest = manifest_transformer.transform(&context.source.manifest)?;
+    let transformed_manifest = manifest_transformer.transform(&context.source.manifest, Some(&context.source))?;
     
     // Track manifest changes
     if context.source.manifest.browser_specific_settings.is_none() {

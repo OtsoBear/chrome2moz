@@ -585,7 +585,8 @@ fn test_real_world_latex_to_calc() {
 }
 
 #[test]
-fn test_chrome_namespace_conversion() {
+fn test_chrome_namespace_pass_through() {
+    // With simplified approach: Firefox supports chrome.* natively, so no transformation needed!
     let temp_input = TempDir::new().unwrap();
     let temp_output = TempDir::new().unwrap();
     
@@ -624,11 +625,15 @@ chrome.storage.local.get("key", (result) => {
     );
     assert!(result.is_ok());
     
-    // Verify chrome -> browser conversion
+    // NEW APPROACH: chrome.* stays as-is (Firefox supports it natively!)
     let background_content = fs::read_to_string(temp_output.path().join("background.js")).unwrap();
-    assert!(background_content.contains("browser.storage") || background_content.contains("chrome.storage"), 
-            "Namespace not properly converted");
-    assert!(background_content.contains("typeof browser"), "Browser polyfill not added");
+    assert!(background_content.contains("chrome.storage"),
+            "chrome.* namespace should be preserved (Firefox supports it!)");
+    
+    // Manifest should be updated with Firefox settings
+    let manifest_content = fs::read_to_string(temp_output.path().join("manifest.json")).unwrap();
+    assert!(manifest_content.contains("browser_specific_settings"),
+            "Manifest should have Firefox-specific settings");
     
     let _ = validate_with_linter(&temp_output.path().to_path_buf());
 }

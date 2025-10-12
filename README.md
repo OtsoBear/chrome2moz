@@ -8,18 +8,25 @@
 [![GitHub Issues](https://img.shields.io/github/issues/OtsoBear/chrome2moz)](https://github.com/OtsoBear/chrome2moz/issues)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/OtsoBear/chrome2moz)](https://github.com/OtsoBear/chrome2moz/commits/main)
 
-A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically converts Chrome Manifest V3 extensions to Firefox-compatible format. Features AST-based parsing, automatic API conversion, manifest transformation, and compatibility shim generation.
+A Rust-based CLI tool and WebAssembly library that converts Chrome Manifest V3 extensions to Firefox-compatible format, focusing on **Chrome-only APIs** and **real compatibility differences**.
 
 **Live Demo**: [https://otsobear.github.io/chrome2moz/](https://otsobear.github.io/chrome2moz/)
 
+## Key Understanding
+
+**Firefox natively supports `chrome.*` APIs!** Most Chrome extensions work in Firefox without changes. This tool focuses on:
+
+1. **Chrome-only APIs** that don't exist in Firefox (e.g., `chrome.offscreen`, `chrome.declarativeContent`)
+2. **Manifest differences** (service workers → event pages, permission separation)
+3. **Behavior differences** (URL resolution, web_accessible_resources)
+
 ## Features
 
-- **AST-Based Parsing**: Accurate code transformations using SWC
-- **Full TypeScript Support**: Handles `.ts`, `.tsx`, and `.d.ts` files
-- **Automatic API Conversion**: `chrome.*` → `browser.*` with scope awareness
-- **Smart Polyfills**: Context-aware injection based on module type
-- **Manifest Transformation**: MV3 manifests adapted for Firefox
-- **Compatibility Shims**: 12 auto-generated shims for API differences
+- **Smart Detection**: Identifies Chrome-only APIs that need conversion
+- **Minimal Transformation**: Pass-through approach with runtime shims
+- **Manifest Transformation**: Handles MV3 manifest differences for Firefox
+- **Runtime Compatibility**: 10 shims for Chrome-only APIs
+- **importScripts() Handling**: Automatic detection and manifest integration
 - **Multiple Input Formats**: Supports `.crx`, `.zip`, or unpacked directories
 - **WebAssembly UI**: Browser-based interface (no installation required)
 - **XPI Packaging**: Ready-to-install Firefox extension packages
@@ -84,33 +91,28 @@ cargo build --release
 
 For interactive mode, run without arguments: `./target/release/chrome2moz`
 
-## What It Does
+## What It Actually Converts
 
-**JavaScript Transformations:**
-- Converts `chrome.*` API calls to `browser.*`
-- Injects browser polyfills and compatibility shims
-- Fixes `executeScript` parameter differences (`function` → `func`)
-- Handles TypeScript files with automatic type stripping
+**Note**: Firefox already supports `chrome.*` namespace natively! JavaScript passes through unchanged with runtime shims.
 
-**Manifest Transformations:**
-- Adds Firefox-specific `browser_specific_settings`
-- Converts service workers to event pages
-- Adjusts permission declarations
-- Updates background script configuration
+**Runtime Shims** (Chrome-only APIs):
+- `chrome.storage.session` → In-memory polyfill
+- `chrome.sidePanel` → Firefox `sidebarAction` mapping
+- `chrome.declarativeNetRequest` → Stub (guides to webRequest)
+- `chrome.tabGroups` → No-op stub
+- `chrome.privacy` → Stub
+- `chrome.userScripts` → ContentScripts mapping
+- `chrome.tabs/windows` → Compatibility layer
+- `chrome.runtime` → Compatibility layer
+- `chrome.downloads` → Compatibility layer
+- `chrome.notifications` → Compatibility layer
 
-**Compatibility Shims:**
-- `browser` polyfill (chrome → browser namespace)
-- Session storage polyfill (`chrome.storage.session`)
-- Action API compatibility (`chrome.action` ↔ `browser.action`)
-- declarativeNetRequest stub with webRequest migration guidance
-- sidePanel → sidebarAction mapping (different UI placement)
-- Legacy API wrappers (deprecated tabs/windows methods)
-- Downloads API compatibility (removes unsupported options)
-- Notifications compatibility (removes Chrome-only features)
-- Runtime compatibility (Chrome-specific methods)
-- Privacy API stubs
-- User scripts compatibility
-- Promise wrapper utilities
+**Manifest Transformations**:
+- `background.service_worker` → `background.scripts` (event page)
+- Add `browser_specific_settings.gecko` for extension ID
+- Separate `permissions` from `host_permissions`
+- Handle `web_accessible_resources` format differences
+- `importScripts()` → Extract scripts, add to manifest, comment out calls
 
 ## Testing in Firefox
 
@@ -120,35 +122,36 @@ For interactive mode, run without arguments: `./target/release/chrome2moz`
 
 For errors, check Browser Console (Ctrl+Shift+J).
 
-## Known Limitations
+## Known Limitations & Compatibility
 
-**Chrome-Only APIs:**
+**What Works Automatically:**
+- ✅ Standard WebExtension APIs (`chrome.storage`, `chrome.tabs`, `chrome.runtime`, etc.)
+- ✅ Most Chrome APIs (Firefox supports them natively)
+- ✅ Callback-based APIs (Firefox handles them automatically)
+- ✅ TypeScript extensions
 
-See **[ Chrome API Implementation Status](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)** for the complete list of 176 Chrome-only APIs and their implementation status.
+**What Needs Conversion** (This Tool Handles):
+- ⚙️ `chrome.offscreen` → Web Workers/content scripts
+- ⚙️ `chrome.declarativeContent` → Content script patterns
+- ⚙️ `chrome.declarativeNetRequest` → webRequest API
+- ⚙️ `chrome.storage.session` → In-memory polyfill
+- ⚙️ `chrome.sidePanel` → sidebarAction
+- ⚙️ Service workers → Event pages
+- ⚙️ Manifest permission separation
 
-**Fully Implemented (Automatic Conversion):**
--  `chrome.offscreen.*` - Converted to Web Workers, Content Scripts, or Background Script integrations
--  `chrome.declarativeContent.*` - Converted to content script + messaging patterns
--  `chrome.declarativeNetRequest.*` - Full converter to Firefox `webRequest` API (46 APIs)
--  `chrome.sidePanel.*` - Maps to Firefox `sidebarAction` with compatibility layer (10 APIs)
--  `chrome.storage.session` - In-memory polyfill using JavaScript Map
--  `chrome.userScripts.*` - Falls back to `contentScripts.register()`
--  Legacy APIs - `tabs.getSelected`, `tabs.getAllInWindow`, etc.
+**Not Supported in Firefox** (Stubbed):
+- ❌ `chrome.tabGroups` (Firefox doesn't support tab grouping)
+- ❌ `chrome.action.openPopup()` (not available)
+- ❌ Some `chrome.privacy` settings (different architecture)
+- ❌ Various Chrome-specific extended features
 
-**Stub/No-Op (No Firefox Equivalent):**
--  `chrome.tabGroups.*` - Stub provided (Firefox doesn't support tab grouping)
--  `chrome.action.openPopup` - Not available in Firefox
+See **[Chrome API Implementation Status](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)** for the complete list.
 
-**Not Yet Implemented (118 APIs):**
-- Most `devtools.*` extended features (19 APIs)
-- Extended `notifications.*` options (11 APIs)
-- `privacy.*` settings (12 APIs)
-- Various extended features in `tabs`, `downloads`, `runtime`, etc.
-
-**Important Differences:**
-- **Service Workers**: Converted to event pages (Firefox background scripts)
-- **Host Permissions**: Optional by default in Firefox (users can deny)
-- **Manifest Keys**: Some Chrome-specific keys preserved for cross-browser compatibility
+**Important Notes:**
+- Firefox **does support** `chrome.*` namespace natively
+- No need to rewrite code to use `browser.*` (though you can if you want)
+- Promise/callback differences are handled automatically by Firefox
+- Focus is on **actual incompatibilities**, not artificial namespace differences
 
 ## Building for Development
 
