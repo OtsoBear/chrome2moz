@@ -38,15 +38,6 @@ A Rust-based CLI tool and WebAssembly library (`chrome2moz`) that automatically 
 |  **Implemented** | 61 (34%) | Automatic conversion with shims/converters |
 |  **Not Implemented** | 118 (66%) | Detection only, no conversion yet |
 
-###  Top Implemented Categories
-
-| API Category | Coverage | APIs |
-|--------------|----------|------|
-| **declarativeNetRequest** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 46/46 Full webRequest converter |
-| **sidePanel** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 10/10 Firefox sidebarAction adapter |
-| **storage.session** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 1/1 In-memory polyfill |
-| **Legacy APIs** | ![Progress](https://progress-bar.xyz/100/?scale=100&width=150&color=00d1b2&show_text=false) | 3/3 Compatibility wrappers |
-
 **[ View Full API Status & Breakdown →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**
 
 >  **Tip**: Run `cargo run chrome-only-apis` to fetch the latest Chrome-only API list from MDN and check current implementation status.
