@@ -43,6 +43,9 @@ impl ManifestTransformer {
         // 7. Fix content scripts for iframe support
         self.fix_content_scripts(&mut result);
         
+        // 8. Remove Chrome-specific fields
+        self.remove_chrome_specific_fields(&mut result);
+        
         Ok(result)
     }
     
@@ -170,7 +173,10 @@ impl ManifestTransformer {
     
     fn transform_permissions(&self, manifest: &mut Manifest) {
         // Remove invalid permissions for Firefox
-        let invalid_permissions = vec!["commands"]; // "commands" is not a permission, it's a manifest key
+        let invalid_permissions = vec![
+            "commands",   // "commands" is not a permission, it's a manifest key
+            "offscreen",  // Chrome-only permission for offscreen documents
+        ];
         
         // Separate API permissions from host permissions
         let permissions = manifest.permissions.clone();
@@ -248,6 +254,21 @@ impl ManifestTransformer {
             if !content_script.all_frames {
                 content_script.all_frames = true;
             }
+        }
+    }
+    
+    fn remove_chrome_specific_fields(&self, manifest: &mut Manifest) {
+        // Remove Chrome-specific fields that Firefox doesn't support
+        let chrome_only_fields = vec![
+            "key",           // Chrome's public key for extension signing
+            "update_url",    // Chrome's auto-update URL
+            "minimum_chrome_version",  // Chrome version requirement
+            "oauth2",        // Chrome's OAuth2 configuration
+            "export",        // Chrome's export configuration
+        ];
+        
+        for field in chrome_only_fields {
+            manifest.extra.remove(field);
         }
     }
     
