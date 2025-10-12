@@ -13,44 +13,34 @@ pub fn analyze_javascript_apis(content: &str, path: &PathBuf) -> Vec<Incompatibi
             for call in api_calls {
                 // Check for Chrome-only APIs
                 if call.is_chrome_only {
+                    let api_name = &call.api_name;
+                    let suggestion = if api_name.contains("storage.session") {
+                        "Will provide in-memory polyfill (runtime shim)"
+                    } else if api_name.contains("sidePanel") {
+                        "Will map to Firefox sidebarAction (runtime shim)"
+                    } else if api_name.contains("declarativeNetRequest") {
+                        "Will provide stub with guidance to use webRequest API"
+                    } else if api_name.contains("tabGroups") {
+                        "Will provide no-op stub (Firefox doesn't support tab groups)"
+                    } else if api_name.contains("offscreen") {
+                        "Chrome-only API. Consider using Web Workers or content scripts"
+                    } else {
+                        "Chrome-only API. Will include runtime compatibility shim"
+                    };
+                    
                     issues.push(
                         Incompatibility::new(
                             Severity::Major,
                             IncompatibilityCategory::ChromeOnlyApi,
                             Location::FileLocation(path.clone(), call.line),
-                            format!("Chrome-only API detected: {}", call.api_name)
+                            format!("Chrome-only API: {}", call.api_name)
                         )
-                        .with_suggestion("This API is not available in Firefox. Consider alternative approaches.")
+                        .with_suggestion(suggestion)
                     );
                 }
                 
-                // Check for callback-style APIs
-                if call.is_callback_style {
-                    issues.push(
-                        Incompatibility::new(
-                            Severity::Minor,
-                            IncompatibilityCategory::CallbackVsPromise,
-                            Location::FileLocation(path.clone(), call.line),
-                            format!("Callback-style API: {}", call.api_name)
-                        )
-                        .with_suggestion("Firefox prefers promise-based APIs. Consider converting to promises.")
-                        .auto_fixable()
-                    );
-                }
-                
-                // Check for chrome namespace usage
-                if call.api_name.starts_with("chrome.") {
-                    issues.push(
-                        Incompatibility::new(
-                            Severity::Info,
-                            IncompatibilityCategory::ApiNamespace,
-                            Location::FileLocation(path.clone(), call.line),
-                            format!("Chrome namespace usage: {}", call.api_name)
-                        )
-                        .with_suggestion("Will be converted to browser namespace")
-                        .auto_fixable()
-                    );
-                }
+                // Note: We don't report chrome.* namespace usage because Firefox supports it natively!
+                // JavaScript passes through unchanged. Runtime shims handle compatibility.
             }
         }
         Err(e) => {

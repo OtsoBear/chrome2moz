@@ -28,9 +28,9 @@ pub fn analyze_manifest(manifest: &Manifest) -> Vec<Incompatibility> {
                 Severity::Major,
                 IncompatibilityCategory::MissingFirefoxId,
                 Location::ManifestField("browser_specific_settings".to_string()),
-                "Firefox requires browser_specific_settings.gecko.id for submission"
+                "Missing Firefox extension ID (required for AMO submission)"
             )
-            .with_suggestion("Add a unique extension ID in email format")
+            .with_suggestion("Will auto-generate email-style ID: {name}@converted-extension.org")
             .auto_fixable()
         );
     }
@@ -43,9 +43,9 @@ pub fn analyze_manifest(manifest: &Manifest) -> Vec<Incompatibility> {
                     Severity::Major,
                     IncompatibilityCategory::BackgroundWorker,
                     Location::ManifestField("background".to_string()),
-                    "Service worker detected. Firefox MV3 uses event pages (background.scripts)"
+                    "Service worker detected (Chrome). Firefox uses event pages with background.scripts"
                 )
-                .with_suggestion("Add background.scripts with same file for Firefox compatibility")
+                .with_suggestion("Will convert to event page + detect importScripts() calls + include 10 runtime shims")
                 .auto_fixable()
             );
         }
@@ -61,9 +61,9 @@ pub fn analyze_manifest(manifest: &Manifest) -> Vec<Incompatibility> {
                 Severity::Minor,
                 IncompatibilityCategory::HostPermissions,
                 Location::ManifestField("permissions".to_string()),
-                "Match patterns found in permissions should be in host_permissions for MV3"
+                "Host patterns in 'permissions' (should be separate in Firefox MV3)"
             )
-            .with_suggestion("Move match patterns from permissions to host_permissions")
+            .with_suggestion("Will move host patterns to 'host_permissions' array automatically")
             .auto_fixable()
         );
     }
@@ -77,9 +77,9 @@ pub fn analyze_manifest(manifest: &Manifest) -> Vec<Incompatibility> {
                         Severity::Minor,
                         IncompatibilityCategory::WebAccessibleResources,
                         Location::ManifestField("web_accessible_resources".to_string()),
-                        "use_dynamic_url is not supported in Firefox"
+                        "use_dynamic_url not supported in Firefox (Chrome-only feature)"
                     )
-                    .with_suggestion("Remove use_dynamic_url and ensure matches or extension_ids are specified")
+                    .with_suggestion("Will remove use_dynamic_url and ensure matches/extension_ids are specified")
                     .auto_fixable()
                 );
             }
@@ -93,9 +93,9 @@ pub fn analyze_manifest(manifest: &Manifest) -> Vec<Incompatibility> {
                 Severity::Minor,
                 IncompatibilityCategory::ContentSecurityPolicy,
                 Location::ManifestField("content_security_policy".to_string()),
-                "CSP must use object format in MV3"
+                "CSP using MV2 string format (MV3 requires object format)"
             )
-            .with_suggestion("Convert to { extension_pages: '...' } format")
+            .with_suggestion("Will convert to MV3 format: { extension_pages: '...' }")
             .auto_fixable()
         );
     }
@@ -108,9 +108,9 @@ pub fn analyze_manifest(manifest: &Manifest) -> Vec<Incompatibility> {
                     Severity::Minor,
                     IncompatibilityCategory::BrowserStyle,
                     Location::ManifestField("action.browser_style".to_string()),
-                    "browser_style is not supported in MV3"
+                    "browser_style property (deprecated in MV3)"
                 )
-                .with_suggestion("Remove browser_style property")
+                .with_suggestion("Will remove browser_style property automatically")
                 .auto_fixable()
             );
         }
@@ -123,9 +123,9 @@ pub fn analyze_manifest(manifest: &Manifest) -> Vec<Incompatibility> {
                 Severity::Minor,
                 IncompatibilityCategory::ManifestStructure,
                 Location::ManifestField("browser_action".to_string()),
-                "browser_action should be renamed to action in MV3"
+                "browser_action (MV2 API, renamed in MV3)"
             )
-            .with_suggestion("Rename browser_action to action")
+            .with_suggestion("Will rename to 'action' for MV3 compatibility")
             .auto_fixable()
         );
     }

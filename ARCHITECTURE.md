@@ -157,18 +157,16 @@ pub enum Severity {
 
 ### 3. Analyzer ([`src/analyzer/`](src/analyzer/))
 
-**[`api.rs`](src/analyzer/api.rs)**: Detects Chrome-only APIs using MDN data
-- Hardcoded list of 6 most common APIs
+**[`api.rs`](src/analyzer/api.rs)**: Detects Chrome-only APIs
 - Pattern matching for API calls
+- Provides specific shim recommendations
 
-**[`offscreen.rs`](src/analyzer/offscreen.rs)**: Analyzes offscreen documents
-- AST-based code analysis
+**[`offscreen.rs`](src/analyzer/offscreen.rs)**: Analyzes offscreen documents (regex-based)
 - Determines primary purpose (Canvas/Audio/DOM/Network)
-- Calculates complexity score
+- No AST parsing needed
 
-**[`declarative_content.rs`](src/analyzer/declarative_content.rs)**: Analyzes declarativeContent rules
+**[`declarative_content.rs`](src/analyzer/declarative_content.rs)**: Analyzes declarativeContent rules (regex-based)
 - Extracts conditions and actions
-- Detects complex patterns
 
 ### 4. Transformer ([`src/transformer/`](src/transformer/))
 
@@ -273,13 +271,15 @@ Adds scripts to `manifest.background.scripts` BEFORE background.js:
 }
 ```
 
-2. **Background Configuration**
+2. **Background Configuration** (with importScripts() handling)
 ```json
 {
   "background": {
-    "service_worker": "background.js",  // Keep for Chrome
-    "scripts": ["background.js"],       // Add for Firefox
-    "persistent": false
+    "scripts": [
+      "shims/storage-session-compat.js",  // Shims first
+      "config.js",                        // Extracted from importScripts()
+      "background.js"                      // Original script
+    ]
   }
 }
 ```
@@ -333,35 +333,36 @@ pub fn convert_extension(
 
 ## Design Decisions
 
-### Focused Approach: Real Incompatibilities Only
+### Pass-Through Architecture
 
-**Design**: Transform only Chrome-only APIs and manifest differences
+**Design**: JavaScript unchanged, runtime shims provide compatibility
 
 **Rationale**:
 - Firefox natively supports `chrome.*` namespace
-- Most extensions work without changes
-- Simpler, more maintainable codebase
+- No AST parsing needed (1.6GB build vs 3.6GB with SWC)
+- Runtime compatibility more reliable than static transformation
+- Simpler codebase, easier maintenance
 - Faster conversion with fewer edge cases
-- Focus on actual compatibility issues
 
-### Why Keep SWC Parser?
+### Always-Include Shims
 
-**Chosen**: Keep SWC for TypeScript support and Chrome-only API detection
-
-**Rationale**:
-- TypeScript stripping still needed
-- Accurate Chrome-only API detection
-- Module type detection for proper shim injection
-- Fast and reliable
-
-### Conditional Shim Generation
-
-**Chosen**: Include shims only when Chrome-only APIs detected
+**Design**: Include all 10 shims in every conversion
 
 **Rationale**:
-- Smaller output size
-- Only add what's truly needed
-- Chrome-only APIs are the exception, not the rule
+- Guarantees compatibility (~50KB overhead)
+- No conditional detection needed
+- Cross-browser compatible (work in Chrome too)
+- Users don't need to debug missing shims
+
+### importScripts() via Manifest
+
+**Design**: Extract scripts and add to manifest instead of polyfilling
+
+**Rationale**:
+- Completely safe (no eval, no unsafe-eval CSP)
+- Firefox loads scripts in order automatically
+- Passes AMO security review
+- Simple regex detection
 
 ---
 

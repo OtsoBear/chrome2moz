@@ -14,16 +14,25 @@ use crate::models::{Extension, ConversionContext};
 use anyhow::Result;
 
 /// Analyze an extension for Chrome-to-Firefox incompatibilities
+///
+/// This analyzer detects:
+/// - Manifest differences (service worker, permissions, Firefox ID)
+/// - Chrome-only APIs that need runtime shims
+/// - importScripts() calls in background scripts
+///
+/// Note: JavaScript code passes through unchanged!
+/// Runtime shims provide compatibility at execution time.
 pub fn analyze_extension(extension: Extension) -> Result<ConversionContext> {
     let mut context = ConversionContext::new(extension);
     
-    // 1. Analyze manifest
+    // 1. Analyze manifest for structural differences
     let manifest_issues = manifest::analyze_manifest(&context.source.manifest);
     for issue in manifest_issues {
         context.add_incompatibility(issue);
     }
     
-    // 2. Analyze JavaScript files for Chrome API usage
+    // 2. Analyze JavaScript files for Chrome-only API usage
+    // (Detection only - code passes through, shims handle compatibility)
     for js_path in context.source.get_javascript_files() {
         if let Some(content) = context.source.get_file_content(&js_path) {
             let api_issues = api::analyze_javascript_apis(&content, &js_path);
@@ -51,16 +60,16 @@ fn generate_decisions(context: &mut ConversionContext) {
             id: "background_architecture".to_string(),
             category: DecisionCategory::BackgroundArchitecture,
             question: "Your extension uses a service worker. How should we handle Firefox compatibility?".to_string(),
-            context: "Firefox MV3 uses event pages instead of service workers.".to_string(),
+            context: "Firefox MV3 uses event pages (background.scripts) instead of service workers. We'll also detect importScripts() calls and add those scripts to the manifest automatically.".to_string(),
             options: vec![
                 DecisionOption {
                     label: "Create event page (recommended)".to_string(),
-                    description: "Convert service worker to event page with equivalent functionality".to_string(),
+                    description: "Convert to event page + detect importScripts() + include 10 runtime shims".to_string(),
                     recommended: true,
                 },
                 DecisionOption {
                     label: "Keep both".to_string(),
-                    description: "Keep service_worker for Chrome and add scripts for Firefox".to_string(),
+                    description: "Keep service_worker for Chrome and add scripts for Firefox (cross-browser)".to_string(),
                     recommended: false,
                 },
             ],

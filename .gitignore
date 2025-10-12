@@ -37,6 +37,7 @@ test-timers-output/
 final-test-output/
 *.xpi
 *.zip
+3.10.11_0/
 
 # Logs
 *.log
