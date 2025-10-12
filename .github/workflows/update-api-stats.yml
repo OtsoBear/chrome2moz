@@ -68,7 +68,7 @@ jobs:
           not_impl_percentage=$(( 100 - percentage ))
           
           # Update the progress bar URL
-          sed -i "s|https://progress-bar.xyz/[0-9]\\+/\?scale=100&title=API%20Coverage|https://progress-bar.xyz/${percentage}/?scale=100\&title=API%20Coverage|g" README.md
+          sed -i "s|https://progress-bar.xyz/[0-9]\\+/\?scale=100&title=API%20Coverage|https://progress-bar.xyz/${percentage}/?scale=100&title=API%20Coverage|g" README.md
           
           # Update the text showing implemented count
           sed -i "s|\\*\\*[0-9]\\+ of [0-9]\\+ Chrome-only APIs\\*\\*|**${implemented} of ${total} Chrome-only APIs**|g" README.md
