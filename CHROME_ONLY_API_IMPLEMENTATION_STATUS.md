@@ -2,7 +2,7 @@
 
 > **Last Updated**: Based on [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data) + additional APIs we track
 >
-> **Summary**: 199 Chrome-only APIs detected | 61 Implemented (30%) | 138 Not Implemented (70%)
+> **Summary**: 217 Chrome-only APIs detected | 61 Implemented (28%) | 156 Not Implemented (72%)
 
 This document tracks WebExtension APIs that are supported in Chrome but not in Firefox, along with their implementation status in this converter tool.
 
@@ -10,7 +10,7 @@ This document tracks WebExtension APIs that are supported in Chrome but not in F
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| **Total Chrome-Only APIs** | 199 | 100% |
+| **Total Chrome-Only APIs** | 217 | 100% |
 | ** Implemented** | 61 | 34% |
 | ** Not Implemented** | 118 | 66% |
 
