@@ -37,7 +37,7 @@ Per-extension pipeline:
 
 1. **Fetch** — download pinned `.crx` from Google's public CRX endpoint, cached by version
 2. **Instrument** — a single TS injector inserts the spy shim into both the original (unpacked) and the converted output post-conversion. One implementation for both sides guarantees symmetric instrumentation; no converter changes needed
-3. **Launch** — Playwright drives Chromium (original), selenium-webdriver + geckodriver drives Firefox (converted, temporary add-on install). Both run headless (mandatory, not optional — see below). *Design target: both routed through the replay proxy — not shipped in v1, static fixture pages are served directly instead (see Web snapshots)*
+3. **Launch** — Playwright drives Chromium (original), selenium-webdriver + geckodriver drives Firefox (converted, temporary add-on install). Headless is mandatory (user directive), not optional, and both browsers need an explicit flag rather than the driver's own headless switch: Chromium is launched with `headless: false` plus an explicit `--headless=new` arg (`chromeDriver.ts`) — Playwright's own `headless: true` alone never surfaced the extension's service worker; Firefox is launched with the `-headless` arg (`firefoxDriver.ts`). CI additionally wraps the whole differential-test step in `xvfb-run --auto-servernum` as defense-in-depth, not as what makes headless extension loading work (see CI). *Design target: both routed through the replay proxy — not shipped in v1, static fixture pages are served directly instead (see Web snapshots)*
 4. **Probe** — identical stimulus sequence in both browsers (see Probes)
 5. **Collect** — API traces + external observables from both sides
 6. **Diff** — normalized structural diff; unallowed divergence = failure
@@ -61,7 +61,7 @@ Results feed a generated table in the README plus a badge ("N extensions verifie
 | Harness | TypeScript, pnpm | Orchestration, diffing, reporting |
 | Chromium driver | Playwright | Load original, dispatch probes, CDP access (coverage, targets) |
 | Firefox driver | selenium-webdriver + geckodriver | Load converted (temporary add-on), dispatch probes |
-| Spy shim | Plain JS, injected | Wraps `chrome.*`/`browser.*` (+ `fetch`, `WebSocket`), streams calls to telemetry server |
+| Spy shim | Plain JS, injected | Wraps `chrome.*`/`browser.*` + `fetch` via direct property reassignment (not `Proxy`), streams calls to telemetry server. `WebSocket`/`XMLHttpRequest` wrapping not implemented (backlog, issue #5) |
 | Telemetry server | Node, localhost | Receives trace events from both browsers, tags by side |
 | Record/replay proxy | mitmproxy (uv-managed) | **Not implemented (Plan 2).** Design target: record mode for snapshot builds, replay mode in CI. v1 uses only the static fixture pages in `e2e/fixtures/`, served directly, no proxy in the loop |
 | LLM visual judge | Claude API (optional) | **Not implemented (v1.5, unstarted).** Advisory screenshot-pair comparison — see Phasing |
@@ -90,7 +90,7 @@ Results feed a generated table in the README plus a badge ("N extensions verifie
 
 ## Instrumentation shim
 
-- Transparent `Proxy` wrappers over every `chrome.*`/`browser.*` namespace the extension's permissions grant, plus `fetch`/`XMLHttpRequest`/`WebSocket`
+- Every `chrome.*`/`browser.*` namespace the extension's permissions grant is walked recursively and each function/event property is replaced in place (`ns[key] = wrapped`), not wrapped in a `Proxy` object. `fetch` is wrapped the same way, by reassigning `globalThis.fetch` to a function that records then delegates to the captured original. **Not implemented:** `XMLHttpRequest` and `WebSocket` wrapping — only `fetch` is covered on the network side today (backlog, issue #5)
 - Records: API path, normalized args, result/error, context (background/content/popup)
 - **Transparency requirement:** must not alter feature detection — wrap existing properties only, never add missing namespaces. Verified by a dedicated shim test suite
 - Both sides: shim injected by the harness's TS injector after unpack/conversion (same code path → symmetric by construction)
@@ -150,7 +150,7 @@ v1.5: **monkey crawler** — generically click every button/input in popup and o
 
 ## CI
 
-- `.github/workflows/e2e.yml`, committed (not yet merged/pushed at time of writing). Every PR + main, full corpus, single ubuntu job. Drivers run headless internally (mandatory — see Launch/Architecture above); the job additionally wraps the differential-test step in `xvfb-run --auto-servernum` as defense-in-depth, not as the thing that makes headless extension loading work
+- `.github/workflows/e2e.yml`, committed (not yet merged/pushed at time of writing). Every PR + main, full corpus, single ubuntu job. Headless flags are set in the drivers themselves (see Launch step for the exact `--headless=new`/`-headless` args); `xvfb-run --auto-servernum` around the differential-test step is defense-in-depth only
 - Caches implemented: CRX files (by corpus.json hash), cargo build (`Swatinem/rust-cache`), pnpm store (`actions/setup-node` pnpm cache). **Not implemented:** snapshot archive cache — no snapshot corpus exists yet (Plan 2)
 - Job outputs implemented: unit test results, differential e2e pass/fail, `e2e/results/` uploaded as a build artifact (screenshots, notes). **Not implemented:** coverage %, LLM judge report — both deferred (Plan 3 / v1.5)
 - Corpus growth path: matrix-shard by extension when wall time exceeds ~15 min — not yet needed (2-extension corpus), design intent unchanged
