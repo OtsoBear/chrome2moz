@@ -80,15 +80,41 @@
   const wrapEvent = (ev, path) => {
     const origAdd = ev.addListener;
     if (typeof origAdd !== "function") return;
+    // Maps the caller's original callback to the wrapped one we actually register,
+    // so removeListener/hasListener (called with the original cb) keep working.
+    const cbMap = new WeakMap();
     try {
       ev.addListener = function (cb, ...rest) {
         const wrappedCb = function (...args) {
           try { if (!isInternal(args)) record(path + ":fired", normArgs(args)); } catch {}
           return cb.apply(this, args);
         };
+        try { cbMap.set(cb, wrappedCb); } catch {}
         return origAdd.call(ev, wrappedCb, ...rest);
       };
     } catch {}
+
+    const origRemove = ev.removeListener;
+    if (typeof origRemove === "function") {
+      try {
+        ev.removeListener = function (cb, ...rest) {
+          let w;
+          try { w = cbMap.get(cb); } catch {}
+          return origRemove.call(ev, w || cb, ...rest);
+        };
+      } catch {}
+    }
+
+    const origHas = ev.hasListener;
+    if (typeof origHas === "function") {
+      try {
+        ev.hasListener = function (cb, ...rest) {
+          let w;
+          try { w = cbMap.get(cb); } catch {}
+          return origHas.call(ev, w || cb, ...rest);
+        };
+      } catch {}
+    }
   };
 
   const SKIP = new Set(["csi", "loadTimes"]);
@@ -108,6 +134,15 @@
   };
 
   const root = typeof browser !== "undefined" ? browser : typeof chrome !== "undefined" ? chrome : null;
+
+  // Capture raw tabs.query/tabs.sendMessage BEFORE the walk below wraps them, so the
+  // shim's own ping-relay polling (below) calls the unwrapped functions and never
+  // shows up as tabs.* trace events — mirrors the rawFetch pattern.
+  const rawTabsQuery = root && root.tabs && typeof root.tabs.query === "function"
+    ? root.tabs.query.bind(root.tabs) : null;
+  const rawTabsSendMessage = root && root.tabs && typeof root.tabs.sendMessage === "function"
+    ? root.tabs.sendMessage.bind(root.tabs) : null;
+
   if (root) {
     for (const top of Object.keys(root)) {
       let v;
@@ -152,8 +187,8 @@
         if (cmd.type === "ping") {
           let ok = false;
           try {
-            const tabs = await root.tabs.query({ active: true });
-            const reply = await root.tabs.sendMessage(tabs[0].id, { [MARK]: "ping" });
+            const tabs = rawTabsQuery ? await rawTabsQuery({ active: true }) : [];
+            const reply = rawTabsSendMessage ? await rawTabsSendMessage(tabs[0].id, { [MARK]: "ping" }) : null;
             ok = !!(reply && reply[MARK] === "pong");
           } catch {}
           await rawFetch(BASE + "/cmdresult", {
