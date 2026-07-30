@@ -23,8 +23,17 @@ export async function launchChrome(extDir: string): Promise<BrowserSession> {
   const ctx: BrowserContext = await chromium.launchPersistentContext(
     mkdtempSync(join(tmpdir(), "c2m-chrome-")),
     {
+      // headless: true alone (Playwright's own headless mode) never surfaced the extension's
+      // service worker within the 15s wait below. --headless=new passed as an explicit arg
+      // (with headless left false so Playwright doesn't also inject its own headless flag)
+      // does start the service worker reliably — this is the form that actually works.
       headless: false,
-      args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`, "--no-first-run"],
+      args: [
+        "--headless=new",
+        `--disable-extensions-except=${extDir}`,
+        `--load-extension=${extDir}`,
+        "--no-first-run",
+      ],
     },
   );
   let extensionId: string;

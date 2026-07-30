@@ -20,6 +20,7 @@ const KEYMAP: Record<string, string> = {
 
 export async function launchFirefox(xpiPath: string, geckoId: string): Promise<BrowserSession> {
   const opts = new firefox.Options();
+  opts.addArguments("-headless");
   const driver: WebDriver = await new Builder().forBrowser("firefox").setFirefoxOptions(opts).build();
   let extensionId: string;
   try {
