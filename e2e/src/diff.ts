@@ -5,6 +5,11 @@ export type NormalizedEvent = { ctx: string; api: string; args: string };
 export type Divergence = { side: "a" | "b"; event: NormalizedEvent; allowed: boolean };
 
 const ID_KEY = /^(tabId|windowId|frameId|requestId|id)$/;
+// `temporary` only ever appears because the Firefox driver always installs the .xpi via
+// installAddon(path, true) (temporary=true) — the only way to load an unsigned build for
+// testing. A real signed install never sets it. It's harness noise, not extension/converter
+// behavior, so it's stripped before comparison rather than pattern-allowed per extension.
+const NOISE_KEY = /^temporary$/;
 const EXT_URL = /(chrome|moz)-extension:\/\/[a-z0-9-]+/gi;
 const EPOCH = /\b1[0-9]{9}(?:[0-9]{3})?\b/g;
 const ISO = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[^"\s]*/g;
@@ -20,6 +25,7 @@ export function normalizeTrace(events: TraceEvent[]): NormalizedEvent[] {
     if (v && typeof v === "object") {
       const o: Record<string, unknown> = {};
       for (const [k, val] of Object.entries(v)) {
+        if (NOISE_KEY.test(k)) continue;
         o[k] = ID_KEY.test(k) && typeof val === "number" ? mapId(val) : walk(val);
       }
       return o;

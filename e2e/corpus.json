@@ -1,0 +1,52 @@
+{
+  "extensions": [
+    {
+      "id": "latextocalc",
+      "name": "LatexToCalc",
+      "source": "local:../LatexToCalc",
+      "allowed_diffs": ["tabs.create:resolve"],
+      "_notes": {
+        "tabs.create:resolve": "chrome.tabs.create/browser.tabs.create resolve with the browser's own native tabs.Tab object, whose shape genuinely differs between engines (e.g. Chrome-only: selected, frozen; Firefox-only: attention, hidden, isArticle, isInReaderMode, sharingState, successorTabId, cookieStoreId). The converter's shim layer never touches this return value, so this is a platform difference, not a converter bug."
+      },
+      "quarantined": false
+    },
+    {
+      "id": "gojbdfnpnhogfdgjbigejoaolejmgdhk",
+      "name": "OneNote Web Clipper",
+      "source": "cws",
+      "version": "3.11.2",
+      "allowed_diffs": [
+        "offscreen.*",
+        "runtime.getContexts*",
+        "runtime.error",
+        "runtime.sendMessage",
+        "runtime.getManifest",
+        "net.fetch",
+        "tabs.query",
+        "tabs.create",
+        "tabs.create:resolve",
+        "tabs.onCreated:fired",
+        "tabs.onUpdated:fired",
+        "contextMenus.*",
+        "management.uninstallSelf*"
+      ],
+      "_notes": {
+        "_offscreen_cascade_root_cause": "OneNote's background script (minified from build/scripts/communicator/offscreenCommunicator.js) calls chrome.runtime.getContexts({contextTypes:[chrome.runtime.ContextType.OFFSCREEN_DOCUMENT], ...}) unconditionally, with no chrome.offscreen feature-detection guard. On Firefox, chrome.runtime.ContextType.OFFSCREEN_DOCUMENT is undefined (Firefox has no offscreen-document context type), so the call becomes getContexts({contextTypes:[undefined]}), which Firefox's WebExtensions API rejects synchronously ('Expected string instead of undefined'). The extension gates its entire post-install setup behind that same promise (clipperIdProcessed) via bare .then() with no .catch() anywhere (registerContextMenuItems(), onInstalled(), and invokeClipperInTab()'s actual clip-trigger path all chain off it), so on Firefox none of it ever runs: no offscreen document, no context menus, no 'getting started' tour tab, no translated-strings fetch, no clipperId relay -- and clipping itself silently never fires. This is a bug in OneNote's own source (unconditional use of a Chrome-only API), not a chrome2moz mis-conversion; filed as a converter-enhancement candidate at https://github.com/OtsoBear/chrome2moz/issues/2. All patterns below except tabs.onUpdated:fired and management.uninstallSelf* are consequences of this single root cause.",
+        "offscreen.*": "See _offscreen_cascade_root_cause. Firefox never reaches offscreen.createDocument at all (aborts earlier at getContexts), so this is chrome-only in the trace.",
+        "runtime.getContexts*": "See _offscreen_cascade_root_cause. Covers runtime.getContexts / :resolve (chrome, succeeds) and :throw (firefox, the synchronous TypeError).",
+        "runtime.error": "See _offscreen_cascade_root_cause -- the same getContexts TypeError also surfaces via the shim's global error/unhandledrejection listeners (two records, identical message, both traced to this one failure). Broad by necessity: diffTraces only matches on API name, not args/message, so this pattern would also mask an unrelated runtime.error for this extension. Accepted for now since it's scoped to this one corpus entry.",
+        "runtime.sendMessage": "See _offscreen_cascade_root_cause -- all 5 chrome-only calls carry target:\"offscreen\" payloads (clipperId read/set/remove relay to the offscreen document), never reached on Firefox. CAVEAT: OneNote also calls runtime.sendMessage from contentCaptureInject.js, logManager.js and regionOverlay.js for the actual clip flow, which the current probe set (install/content/commands/popup/ping) never exercises. If probes are later extended to trigger a real clip action, this pattern will also mask divergences there (api-name-only matching) and should be re-tightened at that point.",
+        "runtime.getManifest": "See _offscreen_cascade_root_cause -- called from within the gated onInstalled() setup (chrome-only in the trace).",
+        "net.fetch": "See _offscreen_cascade_root_cause -- the one observed call is GET https://www.onenote.com/strings?... (localized UI strings for the getting-started tour/context menu), fetched only from within the gated onInstalled() path. CAVEAT: same api-name-only breadth caveat as runtime.sendMessage above; only 1 URL has ever been observed diverging here.",
+        "tabs.query": "See _offscreen_cascade_root_cause -- used to find the active tab for the getting-started tour, inside the gated onInstalled() path.",
+        "tabs.create": "See _offscreen_cascade_root_cause -- opens the getting-started tour tab (support.microsoft.com/.../getting-started-with-the-onenote-web-clipper-...), inside the gated onInstalled() path; never called on Firefox.",
+        "tabs.create:resolve": "See _offscreen_cascade_root_cause. On top of that, tabs.create resolving would also carry the same Chrome-vs-Firefox native tabs.Tab shape difference documented for latextocalc's tabs.create:resolve allowance, so this pattern would be needed either way.",
+        "tabs.onCreated:fired": "See _offscreen_cascade_root_cause -- fires for the getting-started tour tab, which only Chrome ever creates.",
+        "tabs.onUpdated:fired": "Separate root cause, unrelated to the offscreen cascade: Chrome and Firefox report a different number of intermediate tabs.onUpdated transitions (loading/complete/title/favicon sub-events) for the same navigation -- a well-known cross-browser event-granularity variance, not extension or converter behavior. This only shows up for this entry because OneNote registers a tabs.onUpdated listener (for its own tab-tracking); LatexToCalc doesn't register one, which is why this pattern wasn't needed there.",
+        "contextMenus.*": "See _offscreen_cascade_root_cause -- contextMenus.create (x3, one per clip action) and contextMenus.removeAll are called from registerContextMenuItems(), itself gated behind the same clipperIdProcessed promise; never runs on Firefox.",
+        "management.uninstallSelf*": "Kept from the original task spec as a defensive/regression-guard pattern. Investigated: this pinned version (3.11.2) does not declare the `management` permission at all and never calls management.uninstallSelf in either trace, so the pattern is currently inert (matches nothing). Left in place in case a future re-pin reintroduces browser-detection + self-uninstall behavior, per the binding decision that this entry exists partly to catch that regression."
+      },
+      "quarantined": false
+    }
+  ]
+}

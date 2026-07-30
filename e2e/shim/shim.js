@@ -1,5 +1,5 @@
 /* chrome2moz e2e spy shim. Injected first into every extension context.
-   Placeholders __C2M_SIDE__ / __C2M_PORT__ are replaced at injection time. */
+   Placeholders __C2M_SIDE__ / __C2M_PORT__ / __C2M_CTX_OVERRIDE__ are replaced at injection time. */
 (() => {
   const g = globalThis;
   if (g.__c2m_shim__) return;
@@ -9,8 +9,14 @@
   const PORT = __C2M_PORT__;
   const BASE = "http://127.0.0.1:" + PORT;
   const MARK = "__c2m__";
+  // Baked in by the injector for the background entry point only. Chrome's MV3 service
+  // worker and Firefox's converted event-page background run under different file names
+  // (__c2m_bg.js vs _generated_background_page.html) even though they're the same logical
+  // context, so location-based ctx detection can't tell them apart across sides. The
+  // override collapses both onto one canonical "background" ctx label.
+  const CTX_OVERRIDE = "__C2M_CTX_OVERRIDE__";
 
-  const ctx = (() => {
+  const ctx = CTX_OVERRIDE || (() => {
     try {
       if (typeof location === "undefined") return "background";
       const p = location.protocol;

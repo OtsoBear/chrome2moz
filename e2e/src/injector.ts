@@ -6,26 +6,34 @@ import type { Side } from "./telemetry.js";
 
 const SHIM_SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "shim", "shim.js");
 const SHIM_NAME = "__c2m_shim.js";
+const BG_SHIM_NAME = "__c2m_shim_bg.js";
 
 export function instrumentExtension(dir: string, side: Side, port: number): void {
-  const shim = readFileSync(SHIM_SRC, "utf8")
+  const template = readFileSync(SHIM_SRC, "utf8")
     .replaceAll("__C2M_SIDE__", side)
     .replaceAll("__C2M_PORT__", String(port));
-  writeFileSync(join(dir, SHIM_NAME), shim);
+  // Content scripts and extension HTML pages (popup, options, ...) use the same file names
+  // on both sides, so location-based ctx detection is already symmetric there and gets no
+  // override. The background entry point does not: Chrome's MV3 service worker and
+  // Firefox's converted event-page background load through different file names, so it
+  // gets its own shim copy with ctx forced to a canonical "background" label (see shim.js).
+  writeFileSync(join(dir, SHIM_NAME), template.replaceAll("__C2M_CTX_OVERRIDE__", ""));
 
   const manifestPath = join(dir, "manifest.json");
   const m = JSON.parse(readFileSync(manifestPath, "utf8"));
 
   if (m.background?.service_worker) {
+    writeFileSync(join(dir, BG_SHIM_NAME), template.replaceAll("__C2M_CTX_OVERRIDE__", "background"));
     const orig = m.background.service_worker;
     const isModule = m.background.type === "module";
     const wrapper = isModule
-      ? `import "./${SHIM_NAME}";\nimport "./${orig}";\n`
-      : `importScripts("${SHIM_NAME}", "${orig}");\n`;
+      ? `import "./${BG_SHIM_NAME}";\nimport "./${orig}";\n`
+      : `importScripts("${BG_SHIM_NAME}", "${orig}");\n`;
     writeFileSync(join(dir, "__c2m_bg.js"), wrapper);
     m.background.service_worker = "__c2m_bg.js";
   } else if (Array.isArray(m.background?.scripts)) {
-    m.background.scripts.unshift(SHIM_NAME);
+    writeFileSync(join(dir, BG_SHIM_NAME), template.replaceAll("__C2M_CTX_OVERRIDE__", "background"));
+    m.background.scripts.unshift(BG_SHIM_NAME);
   }
 
   for (const cs of m.content_scripts ?? []) {

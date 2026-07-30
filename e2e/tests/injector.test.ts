@@ -22,8 +22,10 @@ describe("instrumentExtension", () => {
     const m = readManifest(dir);
     expect(m.background.service_worker).toBe("__c2m_bg.js");
     const wrapper = readFileSync(join(dir, "__c2m_bg.js"), "utf8");
-    expect(wrapper).toContain('importScripts("__c2m_shim.js", "bg.js")');
-    expect(existsSync(join(dir, "__c2m_shim.js"))).toBe(true);
+    expect(wrapper).toContain('importScripts("__c2m_shim_bg.js", "bg.js")');
+    expect(existsSync(join(dir, "__c2m_shim_bg.js"))).toBe(true);
+    const bgShim = readFileSync(join(dir, "__c2m_shim_bg.js"), "utf8");
+    expect(bgShim).toContain('"background"'); // ctx override baked in for the background entry point
   });
 
   it("unshifts the shim into a Firefox scripts background and content scripts", () => {
@@ -37,7 +39,7 @@ describe("instrumentExtension", () => {
     );
     instrumentExtension(dir, "firefox-conv", 41999);
     const m = readManifest(dir);
-    expect(m.background.scripts).toEqual(["__c2m_shim.js", "bg.js"]);
+    expect(m.background.scripts).toEqual(["__c2m_shim_bg.js", "bg.js"]);
     expect(m.content_scripts[0].js).toEqual(["__c2m_shim.js", "cs.js"]);
   });
 

@@ -27,9 +27,16 @@ export async function launchChrome(extDir: string): Promise<BrowserSession> {
       args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`, "--no-first-run"],
     },
   );
-  const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));
-  const extensionId = new URL(sw.url()).host;
-  let page: Page = ctx.pages()[0] ?? (await ctx.newPage());
+  let extensionId: string;
+  let page: Page;
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent("serviceworker", { timeout: 15000 }));
+    extensionId = new URL(sw.url()).host;
+    page = ctx.pages()[0] ?? (await ctx.newPage());
+  } catch (e) {
+    await ctx.close().catch(() => {});
+    throw e;
+  }
 
   return {
     extensionId,

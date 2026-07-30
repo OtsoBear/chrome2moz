@@ -15,6 +15,15 @@ describe("normalizeTrace", () => {
     expect(n.args).not.toContain("abcdefgh");
     expect(n.args).not.toContain("1753791234567");
   });
+  it("strips the `temporary` key (Firefox temp-install-only harness noise)", () => {
+    const [n] = normalizeTrace([ev("runtime.onInstalled:fired", [{ reason: "install", temporary: true }])]);
+    expect(n.args).not.toContain("temporary");
+    const [chrome, firefox] = normalizeTrace([
+      ev("runtime.onInstalled:fired", [{ reason: "install" }]),
+      ev("runtime.onInstalled:fired", [{ reason: "install", temporary: true }]),
+    ]);
+    expect(chrome.args).toBe(firefox.args);
+  });
 });
 
 describe("diffTraces", () => {

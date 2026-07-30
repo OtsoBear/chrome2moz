@@ -21,10 +21,16 @@ const KEYMAP: Record<string, string> = {
 export async function launchFirefox(xpiPath: string, geckoId: string): Promise<BrowserSession> {
   const opts = new firefox.Options();
   const driver: WebDriver = await new Builder().forBrowser("firefox").setFirefoxOptions(opts).build();
-  await (driver as unknown as { installAddon(p: string, temp: boolean): Promise<void> }).installAddon(xpiPath, true);
-  await driver.sleep(1000); // let the uuid land in prefs
-  const profile = (await driver.getCapabilities()).get("moz:profile") as string;
-  const extensionId = uuidFor(profile, geckoId);
+  let extensionId: string;
+  try {
+    await (driver as unknown as { installAddon(p: string, temp: boolean): Promise<void> }).installAddon(xpiPath, true);
+    await driver.sleep(1000); // let the uuid land in prefs
+    const profile = (await driver.getCapabilities()).get("moz:profile") as string;
+    extensionId = uuidFor(profile, geckoId);
+  } catch (e) {
+    await driver.quit().catch(() => {});
+    throw e;
+  }
 
   return {
     extensionId,

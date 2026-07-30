@@ -5,7 +5,8 @@ import vm from "node:vm";
 function loadShim(fakeChrome: any, opts: { cmdQueue?: any[] } = {}) {
   const src = readFileSync(new URL("../shim/shim.js", import.meta.url), "utf8")
     .replaceAll("__C2M_SIDE__", "chrome-orig")
-    .replaceAll("__C2M_PORT__", "41999");
+    .replaceAll("__C2M_PORT__", "41999")
+    .replaceAll("__C2M_CTX_OVERRIDE__", ""); // content-shim variant: auto-detect ctx from location
   const posted: any[] = []; // bodies POSTed to /trace only
   const cmdResults: any[] = []; // bodies POSTed to /cmdresult only
   const intervals: Array<() => void> = [];
