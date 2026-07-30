@@ -17,7 +17,7 @@ const settle = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // enough to answer "does this content_scripts.matches array actually cover our fixture
 // origin" honestly, instead of reporting "ran" whenever content_scripts exists at all
 // regardless of whether anything could possibly inject on the fixture page.
-function matchPatternCoversUrl(pattern: string, url: URL): boolean {
+export function matchPatternCoversUrl(pattern: string, url: URL): boolean {
   if (pattern === "<all_urls>") return true;
   const m = pattern.match(/^(\*|[a-z][a-z0-9+.-]*):\/\/(\*|\*\.[^/*]+|[^/*]+)(\/.*)$/i);
   if (!m) return false;
@@ -83,6 +83,15 @@ export async function popupProbe(p: ProbeContext): Promise<ProbeResult> {
 }
 
 export async function pingProbe(p: ProbeContext): Promise<ProbeResult> {
+  // The ping relay only works because the shim gets injected into whatever content script
+  // the extension itself declares (instrumentExtension unshifts it into each
+  // content_scripts[].js array) -- there's no universal listener. So this probe can only
+  // ever succeed if content_scripts already covers the fixture origin; check that first and
+  // skip before opening any pages, instead of opening pages, waiting on a relay that can
+  // never respond, and only then reporting skipped.
+  if (!contentScriptsCoverUrl(p.manifest, p.fixtureUrl("basic.html"))) {
+    return { name: "ping", status: "skipped", note: "no content script on fixture page" };
+  }
   const url = p.fixtureUrl("basic.html");
   await p.chrome.open(url);
   await p.firefox.open(url);
@@ -102,7 +111,10 @@ export async function pingProbe(p: ProbeContext): Promise<ProbeResult> {
     return { name: "ping", status: "failed", note: `asymmetric: chrome.ok=${chromeOk} firefox.ok=${firefoxOk} -- ${note}` };
   }
   if (!chromeOk && !firefoxOk) {
-    return { name: "ping", status: "skipped", note: "no content script on fixture page" };
+    // Reached only when content_scripts DOES cover the fixture origin (checked above) yet
+    // neither side's relay still answered -- a different, rarer situation than the pre-gate
+    // "no content script at all" case, so it gets its own note.
+    return { name: "ping", status: "skipped", note: `content_scripts cover the fixture origin but neither side's relay responded -- ${note}` };
   }
   return { name: "ping", status: "ran", note };
 }

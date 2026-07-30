@@ -22,8 +22,11 @@ const TABS_FIRED = /^tabs\.on\w+:fired$/;
 // chrome UI dimensions, sub-millisecond timing). Rather than allowlisting every API that can
 // hand back a Tab, project any Tab-shaped object down to the handful of fields an extension
 // actually cares about. id/windowId/index/active are present on every Tab regardless of
-// permissions; url/title/favIconUrl are omitted entirely by both browsers unless the
-// extension holds "tabs" or a matching host permission, so they're included when present.
+// permissions; url/title are omitted entirely by both browsers unless the extension holds
+// "tabs" or a matching host permission, so they're included (when present) via
+// TAB_PROJECT_KEYS. favIconUrl is deliberately NOT part of the projection — it's another
+// permission-gated, engine-specific URL no corpus entry has needed to diff on yet; add it
+// here if one does.
 const TAB_PROJECT_KEYS = ["url", "title", "status", "index", "active"] as const;
 const looksLikeTab = (o: Record<string, unknown>): boolean =>
   "id" in o && "windowId" in o && "index" in o && typeof o.active === "boolean";
@@ -34,15 +37,30 @@ const looksLikeTab = (o: Record<string, unknown>): boolean =>
 // this one event's first-arg object, not any key named "temporary" at any depth anywhere.
 const ONINSTALLED_FIRED = "runtime.onInstalled:fired";
 
+// Bare 10-digit integers (e.g. Chrome's own tab ids, like 1141107017) are indistinguishable
+// in magnitude from a 10-digit seconds-epoch timestamp, so only an unambiguous case is
+// scrubbed: an exact 13-digit integer (ms-epoch), or any fractional number in the
+// seconds-to-ms epoch magnitude range (10-13 integer digits) — no legitimate id or counter is
+// ever fractional, so a fractional value that size is safely a timestamp
+// (e.g. Tab.lastAccessed: 1785383263679.716). The string-form EPOCH regex above is unchanged
+// and still scrubs 10/13-digit epoch numbers embedded in strings (URLs, etc.), where the
+// surrounding context already disambiguates them from a bare id.
 function isEpochLike(n: number): boolean {
   if (!Number.isFinite(n)) return false;
   const digits = Math.floor(Math.abs(n)).toString().length;
-  return digits === 10 || digits === 13;
+  if (Number.isInteger(n)) return digits === 13;
+  return digits >= 10 && digits <= 13;
 }
 
 export function normalizeTrace(events: TraceEvent[]): NormalizedEvent[] {
   const idMap = new Map<number, string>();
-  const mapId = (n: number) => {
+  // frameId:0 (top frame) and tabId:-1 ("no tab", e.g. devtools) are WebExtensions spec
+  // sentinels, not dynamic per-instance ids — remapping them through the per-trace idMap
+  // consumed an <id:N> slot (usually the very first one, since they appear on so many
+  // events) and skewed every real id that followed. They're already directly comparable
+  // across browsers as literal 0 / -1, so they're left untouched instead.
+  const mapId = (n: number): number | string => {
+    if (n <= 0) return n;
     if (!idMap.has(n)) idMap.set(n, `<id:${idMap.size + 1}>`);
     return idMap.get(n)!;
   };

@@ -42,17 +42,40 @@ describe("normalizeTrace", () => {
     const [n] = normalizeTrace([ev("someApi.call", [42])]);
     expect(n.args).toBe("[42]");
   });
-  it("scrubs epoch-magnitude numbers (10 or 13 digit, optionally fractional) to <time>", () => {
-    const [ten] = normalizeTrace([ev("x.y", [{ lastAccessed: 1785383263 }])]);
-    expect(ten.args).toContain("<time>");
-    expect(ten.args).not.toContain("1785383263");
-    const [thirteenFrac] = normalizeTrace([ev("x.y", [{ lastAccessed: 1785383263679.716 }])]);
-    expect(thirteenFrac.args).toContain("<time>");
-    expect(thirteenFrac.args).not.toContain("1785383263679");
-    // a small, clearly-not-a-timestamp number must survive untouched
-    const [small] = normalizeTrace([ev("x.y", [{ index: 3 }])]);
-    expect(small.args).toContain("3");
-    expect(small.args).not.toContain("<time>");
+  it("scrubs a bare 13-digit integer (unambiguous ms-epoch) to <time>", () => {
+    const [n] = normalizeTrace([ev("x.y", [{ lastAccessed: 1785383263679 }])]);
+    expect(n.args).toContain("<time>");
+    expect(n.args).not.toContain("1785383263679");
+  });
+  it("scrubs a fractional epoch-magnitude number (10-13 integer digits) to <time>", () => {
+    const [n] = normalizeTrace([ev("x.y", [{ lastAccessed: 1785383263679.716 }])]);
+    expect(n.args).toContain("<time>");
+    expect(n.args).not.toContain("1785383263679");
+  });
+  it("does NOT scrub a bare 10-digit integer (too easily confused with a real id, e.g. a Chrome tab id)", () => {
+    // 1141107017 is a real Chrome tab id observed in practice, not a timestamp
+    const [n] = normalizeTrace([ev("x.y", [{ someId: 1141107017 }])]);
+    expect(n.args).toContain("1141107017");
+    expect(n.args).not.toContain("<time>");
+  });
+  it("a small, clearly-not-a-timestamp number survives untouched", () => {
+    const [n] = normalizeTrace([ev("x.y", [{ index: 3 }])]);
+    expect(n.args).toContain("3");
+    expect(n.args).not.toContain("<time>");
+  });
+  it("a bare 10-digit positional number on a non-tabs.on*:fired event is neither id-mapped nor epoch-scrubbed", () => {
+    const [n] = normalizeTrace([ev("someApi.call", [1141107017])]);
+    expect(n.args).toBe("[1141107017]");
+  });
+  it("does not remap sentinel ids (frameId:0, tabId:-1) -- only positive ids consume an <id:N> slot", () => {
+    const [n] = normalizeTrace([ev("webNavigation.onCommitted:fired", [{ frameId: 0, tabId: -1 }])]);
+    expect(n.args).toContain('"frameId":0');
+    expect(n.args).toContain('"tabId":-1');
+    expect(n.args).not.toContain("<id:");
+    // a real id appearing alongside a sentinel should still land on <id:1>, not <id:2> --
+    // the sentinel must not have consumed a slot first.
+    const [withReal] = normalizeTrace([ev("x.y", [{ frameId: 0, tabId: 555 }])]);
+    expect(withReal.args).toBe('[{"frameId":0,"tabId":"<id:1>"}]');
   });
   it("projects Tab-shaped objects down to url/title/status/index/active, dropping engine-specific fields", () => {
     const chromeTab = {
