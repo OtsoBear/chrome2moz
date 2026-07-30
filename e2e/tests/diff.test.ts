@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeTrace, diffTraces } from "../src/diff.js";
+import { normalizeTrace, diffTraces, countMatchedEvents, assessVacuity } from "../src/diff.js";
 
 const ev = (api: string, args: unknown[] = [], ctx = "background") =>
   ({ seq: 0, ctx, api, args });
@@ -149,5 +149,62 @@ describe("diffTraces", () => {
     const a = normalizeTrace([ev("tabGroups.query", [{ anything: "at all" }])]);
     const d = diffTraces(a, [], ["tabGroups.*"]);
     expect(d[0].allowed).toBe(true);
+  });
+});
+
+describe("countMatchedEvents", () => {
+  it("counts events that line up identically on both sides", () => {
+    const a = normalizeTrace([ev("storage.local.set", [{ a: 1 }]), ev("runtime.onInstalled:fired", [{ reason: "install" }])]);
+    const b = normalizeTrace([ev("storage.local.set", [{ a: 1 }]), ev("runtime.onInstalled:fired", [{ reason: "install" }])]);
+    expect(countMatchedEvents(a, b)).toBe(2);
+  });
+  it("counts zero when nothing lines up", () => {
+    const a = normalizeTrace([ev("storage.local.set", [{ a: 1 }])]);
+    const b = normalizeTrace([ev("management.uninstallSelf")]);
+    expect(countMatchedEvents(a, b)).toBe(0);
+  });
+  it("counts zero when both traces are empty", () => {
+    expect(countMatchedEvents([], [])).toBe(0);
+  });
+  it("sums matches across multiple contexts independently", () => {
+    const a = normalizeTrace([ev("storage.local.set", [{ a: 1 }], "background"), ev("runtime.sendMessage", ["ping"], "content")]);
+    const b = normalizeTrace([ev("storage.local.set", [{ a: 1 }], "background"), ev("runtime.sendMessage", ["ping"], "content")]);
+    expect(countMatchedEvents(a, b)).toBe(2);
+  });
+});
+
+describe("assessVacuity", () => {
+  it("flags vacuous when chrome's trace is empty", () => {
+    const b = normalizeTrace([ev("storage.local.set", [{ a: 1 }])]);
+    const result = assessVacuity([], b, 0);
+    expect(result.vacuous).toBe(true);
+    expect(result.reason).toContain("chrome=0");
+    expect(result.reason).toContain("firefox=1");
+  });
+  it("flags vacuous when firefox's trace is empty", () => {
+    const a = normalizeTrace([ev("storage.local.set", [{ a: 1 }])]);
+    const result = assessVacuity(a, [], 0);
+    expect(result.vacuous).toBe(true);
+  });
+  it("flags vacuous when both traces are empty", () => {
+    const result = assessVacuity([], [], 0);
+    expect(result.vacuous).toBe(true);
+    expect(result.reason).toContain("matched=0");
+  });
+  it("flags vacuous when both sides have events but nothing matched (e.g. totally disjoint traces)", () => {
+    const a = normalizeTrace([ev("storage.local.set", [{ a: 1 }])]);
+    const b = normalizeTrace([ev("management.uninstallSelf")]);
+    const matched = countMatchedEvents(a, b);
+    const result = assessVacuity(a, b, matched);
+    expect(result.vacuous).toBe(true);
+    expect(result.reason).toContain("matched=0");
+  });
+  it("does not flag vacuous when both sides have activity and at least one event matched", () => {
+    const a = normalizeTrace([ev("storage.local.set", [{ a: 1 }]), ev("management.uninstallSelf")]);
+    const b = normalizeTrace([ev("storage.local.set", [{ a: 1 }])]);
+    const matched = countMatchedEvents(a, b);
+    const result = assessVacuity(a, b, matched);
+    expect(result.vacuous).toBe(false);
+    expect(result.reason).toBeNull();
   });
 });

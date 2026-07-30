@@ -131,17 +131,47 @@ function makeIsAllowed(patterns: string[]): (e: NormalizedEvent) => boolean {
   return (e: NormalizedEvent) => compiled.some(({ match, substr }) => match(e.api) && (substr === null || e.args.includes(substr)));
 }
 
+// Shared per-context LCS pass, used by both diffTraces (which needs the divergent leftovers)
+// and countMatchedEvents (which only needs how much lined up). Keeping this in one place
+// means the two can never disagree about what "matched" means.
+function perContextLcs(a: NormalizedEvent[], b: NormalizedEvent[]) {
+  const ctxs = new Set([...a, ...b].map((e) => e.ctx));
+  const key = (e: NormalizedEvent) => `${e.api} ${e.args}`;
+  return [...ctxs].map((ctx) => {
+    const ea = a.filter((e) => e.ctx === ctx);
+    const eb = b.filter((e) => e.ctx === ctx);
+    const [inA, inB] = lcsKeep(ea.map(key), eb.map(key));
+    return { ea, eb, inA, inB };
+  });
+}
+
 export function diffTraces(a: NormalizedEvent[], b: NormalizedEvent[], allowedDiffs: string[]): Divergence[] {
   const isAllowed = makeIsAllowed(allowedDiffs);
   const out: Divergence[] = [];
-  const ctxs = new Set([...a, ...b].map((e) => e.ctx));
-  for (const ctx of ctxs) {
-    const ea = a.filter((e) => e.ctx === ctx);
-    const eb = b.filter((e) => e.ctx === ctx);
-    const key = (e: NormalizedEvent) => `${e.api} ${e.args}`;
-    const [inA, inB] = lcsKeep(ea.map(key), eb.map(key));
+  for (const { ea, eb, inA, inB } of perContextLcs(a, b)) {
     ea.forEach((e, i) => { if (!inA[i]) out.push({ side: "a", event: e, allowed: isAllowed(e) }); });
     eb.forEach((e, i) => { if (!inB[i]) out.push({ side: "b", event: e, allowed: isAllowed(e) }); });
   }
   return out;
+}
+
+/** Total events that lined up (matched) across both traces, summed over all contexts. */
+export function countMatchedEvents(a: NormalizedEvent[], b: NormalizedEvent[]): number {
+  return perContextLcs(a, b).reduce((sum, { inA }) => sum + inA.filter(Boolean).length, 0);
+}
+
+export type VacuityAssessment = { vacuous: boolean; reason: string | null };
+
+// A probe run that produced no observable activity on one (or both) sides, or whose two
+// traces share zero matched events across every context, is not evidence of equivalence --
+// it's evidence of nothing happening. Per the spec's vacuity guard, this must be surfaced
+// distinctly rather than silently passing (empty traces trivially diff clean).
+export function assessVacuity(a: NormalizedEvent[], b: NormalizedEvent[], matchedCount: number): VacuityAssessment {
+  if (a.length === 0 || b.length === 0 || matchedCount === 0) {
+    return {
+      vacuous: true,
+      reason: `no observable activity: chrome=${a.length} firefox=${b.length} matched=${matchedCount}`,
+    };
+  }
+  return { vacuous: false, reason: null };
 }

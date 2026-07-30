@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "e2e": "tsx src/run.ts"
   },
   "devDependencies": {

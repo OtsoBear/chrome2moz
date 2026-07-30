@@ -48,7 +48,8 @@
         "contextMenus.*": "See _offscreen_cascade_root_cause -- contextMenus.create (one per clip action) and contextMenus.removeAll are called from registerContextMenuItems(), itself gated behind the same clipperIdProcessed promise; never runs on Firefox.",
         "management.uninstallSelf*": "Kept from the original task spec as a defensive/regression-guard pattern. Investigated: this pinned version (3.11.2) does not declare the `management` permission at all and never calls management.uninstallSelf in either trace, so the pattern is currently inert (matches nothing). Left in place in case a future re-pin reintroduces browser-detection + self-uninstall behavior, per the binding decision that this entry exists partly to catch that regression."
       },
-      "quarantined": false
+      "_note": "gates nothing until a fixture host matching its content_scripts (onenote.officeapps.live.com) exists -- tracked in issue #5",
+      "quarantined": true
     }
   ]
 }

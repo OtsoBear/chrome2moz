@@ -161,6 +161,7 @@ v1.5: **monkey crawler** — generically click every button/input in popup and o
 - Auth-gated behavior: out of scope
 - Observer effect: shim could mask exotic feature-detection paths; transparency test suite shrinks this to near-zero
 - Semantic correctness: equivalence only, by design
+- Shim ordering: the spy shim is injected at position 0 on the converted side, before chrome2moz's own compat shims (`shims/*.js`) — API surface those compat shims add is untraced on the Firefox side, surfacing as false chrome-only divergences that get allowlisted. Fix + corpus re-triage tracked in [chrome2moz#6](https://github.com/OtsoBear/chrome2moz/issues/6)
 
 ## Spikes (do first, in order)
 

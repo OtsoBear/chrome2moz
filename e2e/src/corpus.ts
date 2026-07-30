@@ -10,6 +10,8 @@ export type CorpusEntry = {
   allowed_diffs: string[];
   /** allowed_diffs pattern -> human explanation of why it's a by-design (not bug) divergence. */
   _notes?: Record<string, string>;
+  /** Free-form note about why this entry is quarantined (or other entry-level caveats). */
+  _note?: string;
   quarantined: boolean;
 };
 
