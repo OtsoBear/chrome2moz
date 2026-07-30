@@ -31,3 +31,35 @@ No changes were needed to the spike script vs. the brief. No `--headless=new` or
 - `testdata/hello-extension/content.js` — added `fetch("http://127.0.0.1:41800/from-content").catch(() => {});` as the first line. Reverted after the run.
 
 Both files are back to their Task 1 scaffold state in the committed tree; only `spikes/spike-chromium.ts` and this `RESULTS.md` are new.
+
+## Firefox
+
+Ran `pnpm exec tsx spikes/spike-firefox.ts` from `e2e/` with `selenium-webdriver@4.34.0` (Selenium Manager auto-downloaded `geckodriver`) against **Firefox 152.0.6** at `/Applications/Firefox.app`, on macOS.
+
+**Verdict: all three things worked, first try, no deviations from the brief's script.** No MV2 fallback was needed — MV3 `background.scripts` (event page, not `type: "module"` service worker) installed and ran without error.
+
+Output:
+
+```
+uuids pref line found: true
+telemetry hits: [ '/from-bg', '/favicon.ico', '/from-content' ]
+```
+
+Observed behaviors:
+
+- `driver.installAddon(xpi, true)` (temporary install, second arg `true`) accepted the zipped MV3 extension with `background: { scripts: ["background.js"] }` — no `background.service_worker` support needed/attempted; Firefox 152 still uses the MV2-style event-page background shape for MV3 extensions (`browser_specific_settings.gecko.id` is required for `installAddon`'s temporary-install path to assign a deterministic UUID-free id internally, but the *external* extension id doesn't matter — only the `gecko.id` used to look up the UUID in `prefs.js`).
+- `browser_specific_settings.gecko.id: "c2m-hello@test"` was accepted as the addon identity. Without a `gecko.id`, Firefox would assign an auto-generated id, making it harder to know which key in the `uuids` pref map corresponds to this extension — always set an explicit `gecko.id` for deterministic lookup.
+- `caps.get("moz:profile")` reliably returns the temporary profile directory path used by the geckodriver-launched Firefox instance; `prefs.js` is written into that directory.
+- Timing: a `driver.sleep(3000)` after `driver.get(...)` was sufficient for Firefox to have flushed the `extensions.webextensions.uuids` pref to `prefs.js` on disk. This pref appears to be written at addon-install time (not on shutdown), since the file was readable mid-session without calling `driver.quit()` first. A shorter sleep was not tested; 3000ms as given in the brief worked without flakiness across the run.
+- **prefs.js escaping format**: the `uuids` pref is stored as a single `user_pref(...)` call whose value is a JSON-stringified object, itself embedded as a double-quoted JS string literal — so every inner `"` is backslash-escaped (`\"`). Sanitized sample (one real entry plus the test extension's, others elided):
+
+  ```
+  user_pref("extensions.webextensions.uuids", "{\"newtab@mozilla.org\":\"9b3db26f-c173-4333-9dc4-b07efa6f4c80\",\"c2m-hello@test\":\"18b899fe-ad88-4400-99a5-cecf8b4c9cbe\"}");
+  ```
+
+  The brief's regex (`/extensions\.webextensions\.uuids.*?"({.*?})\\?"/`) matches and captures group 1 as the *raw escaped* JSON text (e.g. `{\"c2m-hello@test\":\"...\"...}` with literal backslash-quote sequences still in it, since the capture group boundary sits just inside the outer quotes). **The real parser (Task 8) must unescape `\"` → `"` before `JSON.parse`-ing** — i.e. `JSON.parse(captured.replace(/\\"/g, '"'))` — then look up the value by the `gecko.id` key (here `c2m-hello@test`) to get the `moz-extension://<uuid>/` UUID. Confirmed manually: the captured/unescaped map contained `"c2m-hello@test": "18b899fe-ad88-4400-99a5-cecf8b4c9cbe"`, matching the extension's assigned UUID.
+- Both the background script's `fetch("http://127.0.0.1:41801/from-bg")` and the content script's `fetch("http://127.0.0.1:41801/from-content")` (injected via `content_scripts.matches: ["http://127.0.0.1/*"]` into the `/page` fixture) reached the localhost server successfully — no CORS or extension-permission blocking observed, consistent with `host_permissions: ["http://127.0.0.1/*"]` being granted on temporary install.
+- Same `/favicon.ico` noise hit seen in the Chromium spike also appeared here (Firefox auto-requests it on navigation); same guidance applies — later telemetry assertions should filter/ignore it rather than doing exact-array equality.
+- A visible Firefox window appeared during the run, as expected for a spike (no headless flag was set). `driver.quit()` and `server.close()` shut down cleanly with no dangling processes.
+
+No changes were needed to the spike script vs. the brief; the MV3 event-page shape worked as-is, so the MV2-fallback branch in Step 2 was not exercised.
