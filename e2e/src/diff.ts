@@ -5,14 +5,40 @@ export type NormalizedEvent = { ctx: string; api: string; args: string };
 export type Divergence = { side: "a" | "b"; event: NormalizedEvent; allowed: boolean };
 
 const ID_KEY = /^(tabId|windowId|frameId|requestId|id)$/;
-// `temporary` only ever appears because the Firefox driver always installs the .xpi via
-// installAddon(path, true) (temporary=true) — the only way to load an unsigned build for
-// testing. A real signed install never sets it. It's harness noise, not extension/converter
-// behavior, so it's stripped before comparison rather than pattern-allowed per extension.
-const NOISE_KEY = /^temporary$/;
 const EXT_URL = /(chrome|moz)-extension:\/\/[a-z0-9-]+/gi;
 const EPOCH = /\b1[0-9]{9}(?:[0-9]{3})?\b/g;
 const ISO = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[^"\s]*/g;
+// tabs.on*:fired listener signatures carry ids positionally, not under an ID_KEY-named
+// object key: onUpdated(tabId, changeInfo, tab), onRemoved(tabId, removeInfo),
+// onCreated(tab) [no positional id]. Only the array elements of these specific events get
+// checked for bare numeric ids; nothing else does (a bare number elsewhere is not assumed
+// to be an id).
+const TABS_FIRED = /^tabs\.on\w+:fired$/;
+// browser.tabs.create/query/onCreated/onUpdated all hand back the browser's native tabs.Tab
+// object, whose shape genuinely (and irrelevantly, for our purposes) differs between Chrome
+// and Firefox — e.g. Chrome-only frozen/groupId/selected vs Firefox-only
+// attention/hidden/isArticle/isInReaderMode/sharingState/successorTabId/cookieStoreId — and
+// even shared fields like lastAccessed/width/height carry engine-specific noise (differing
+// chrome UI dimensions, sub-millisecond timing). Rather than allowlisting every API that can
+// hand back a Tab, project any Tab-shaped object down to the handful of fields an extension
+// actually cares about. id/windowId/index/active are present on every Tab regardless of
+// permissions; url/title/favIconUrl are omitted entirely by both browsers unless the
+// extension holds "tabs" or a matching host permission, so they're included when present.
+const TAB_PROJECT_KEYS = ["url", "title", "status", "index", "active"] as const;
+const looksLikeTab = (o: Record<string, unknown>): boolean =>
+  "id" in o && "windowId" in o && "index" in o && typeof o.active === "boolean";
+// `temporary` only ever appears on runtime.onInstalled's details object, and only because
+// the Firefox driver always installs the .xpi via installAddon(path, true) (temporary=true)
+// — the only way to load an unsigned build for testing. A real signed install never sets it.
+// It's harness noise, not extension/converter behavior, so it's stripped — but only from
+// this one event's first-arg object, not any key named "temporary" at any depth anywhere.
+const ONINSTALLED_FIRED = "runtime.onInstalled:fired";
+
+function isEpochLike(n: number): boolean {
+  if (!Number.isFinite(n)) return false;
+  const digits = Math.floor(Math.abs(n)).toString().length;
+  return digits === 10 || digits === 13;
+}
 
 export function normalizeTrace(events: TraceEvent[]): NormalizedEvent[] {
   const idMap = new Map<number, string>();
@@ -23,21 +49,36 @@ export function normalizeTrace(events: TraceEvent[]): NormalizedEvent[] {
   const walk = (v: unknown): unknown => {
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") {
+      const src = v as Record<string, unknown>;
+      if (looksLikeTab(src)) {
+        const o: Record<string, unknown> = {};
+        for (const k of TAB_PROJECT_KEYS) if (k in src) o[k] = walk(src[k]);
+        return o;
+      }
       const o: Record<string, unknown> = {};
-      for (const [k, val] of Object.entries(v)) {
-        if (NOISE_KEY.test(k)) continue;
+      for (const [k, val] of Object.entries(src)) {
         o[k] = ID_KEY.test(k) && typeof val === "number" ? mapId(val) : walk(val);
       }
       return o;
     }
+    if (typeof v === "number") return isEpochLike(v) ? "<time>" : v;
     if (typeof v === "string") return v.replace(EXT_URL, "<ext>").replace(ISO, "<time>").replace(EPOCH, "<time>");
     return v;
   };
-  return events.map((e) => ({
-    ctx: e.ctx,
-    api: e.api,
-    args: JSON.stringify(walk(e.args)),
-  }));
+  const dropTemporary = (o: Record<string, unknown>): Record<string, unknown> => {
+    const { temporary: _drop, ...rest } = o;
+    return rest;
+  };
+  return events.map((e) => {
+    let args: unknown = e.args;
+    if (e.api === ONINSTALLED_FIRED && Array.isArray(args) && args[0] && typeof args[0] === "object" && !Array.isArray(args[0])) {
+      args = [dropTemporary(args[0] as Record<string, unknown>), ...args.slice(1)];
+    }
+    const argsOut = TABS_FIRED.test(e.api) && Array.isArray(args)
+      ? args.map((el) => (typeof el === "number" ? mapId(el) : walk(el)))
+      : walk(args);
+    return { ctx: e.ctx, api: e.api, args: JSON.stringify(argsOut) };
+  });
 }
 
 function lcsKeep(a: string[], b: string[]): boolean[][] {
@@ -56,8 +97,24 @@ function lcsKeep(a: string[], b: string[]): boolean[][] {
   return [inA, inB];
 }
 
+// allowed_diffs entries support an optional "<api-glob>#<substring>" form: the pattern only
+// allows a divergence when the glob matches the event's api AND the event's normalized args
+// string contains the substring after "#". Plain entries (no "#") keep the old api-only
+// behavior. This lets broad-surface-area APIs (runtime.error, net.fetch, runtime.sendMessage)
+// be pinned to the one specific call site a triage actually investigated, instead of
+// allowlisting every call to that API for the whole corpus entry.
+function makeIsAllowed(patterns: string[]): (e: NormalizedEvent) => boolean {
+  if (!patterns.length) return () => false;
+  const compiled = patterns.map((p) => {
+    const hashIdx = p.indexOf("#");
+    if (hashIdx === -1) return { match: picomatch(p), substr: null as string | null };
+    return { match: picomatch(p.slice(0, hashIdx)), substr: p.slice(hashIdx + 1) };
+  });
+  return (e: NormalizedEvent) => compiled.some(({ match, substr }) => match(e.api) && (substr === null || e.args.includes(substr)));
+}
+
 export function diffTraces(a: NormalizedEvent[], b: NormalizedEvent[], allowedDiffs: string[]): Divergence[] {
-  const isAllowed = allowedDiffs.length ? picomatch(allowedDiffs) : () => false;
+  const isAllowed = makeIsAllowed(allowedDiffs);
   const out: Divergence[] = [];
   const ctxs = new Set([...a, ...b].map((e) => e.ctx));
   for (const ctx of ctxs) {
@@ -65,8 +122,8 @@ export function diffTraces(a: NormalizedEvent[], b: NormalizedEvent[], allowedDi
     const eb = b.filter((e) => e.ctx === ctx);
     const key = (e: NormalizedEvent) => `${e.api} ${e.args}`;
     const [inA, inB] = lcsKeep(ea.map(key), eb.map(key));
-    ea.forEach((e, i) => { if (!inA[i]) out.push({ side: "a", event: e, allowed: isAllowed(e.api) }); });
-    eb.forEach((e, i) => { if (!inB[i]) out.push({ side: "b", event: e, allowed: isAllowed(e.api) }); });
+    ea.forEach((e, i) => { if (!inA[i]) out.push({ side: "a", event: e, allowed: isAllowed(e) }); });
+    eb.forEach((e, i) => { if (!inB[i]) out.push({ side: "b", event: e, allowed: isAllowed(e) }); });
   }
   return out;
 }

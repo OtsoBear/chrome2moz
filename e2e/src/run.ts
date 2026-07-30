@@ -80,7 +80,9 @@ async function runOne(entry: CorpusEntry): Promise<ExtReport> {
 
   const report: ExtReport = {
     id: entry.id, name: entry.name, quarantined: entry.quarantined, probes, divergences,
-    pass: divergences.every((d) => d.allowed),
+    // A probe can fail outright (e.g. pingProbe's chrome/firefox asymmetry) independent of
+    // any traced divergence — that's a regression signal in its own right.
+    pass: divergences.every((d) => d.allowed) && probes.every((p) => p.status !== "failed"),
   };
   writeFileSync(join(work, "report.json"), JSON.stringify(report, null, 2));
   writeFileSync(join(work, "trace-chrome.json"), JSON.stringify(a, null, 2));
@@ -99,7 +101,10 @@ for (const entry of entries) {
     report = await runOne(entry); // flake control: must reproduce
   }
   const mark = report.pass ? "PASS" : entry.quarantined ? "FAIL (quarantined)" : "FAIL";
-  console.log(`${mark}  ${entry.name}  probes: ${report.probes.map((p) => `${p.name}:${p.status}`).join(" ")}  unallowed divergences: ${report.divergences.filter((d) => !d.allowed).length}`);
+  const probeSummary = report.probes
+    .map((p) => `${p.name}:${p.status}${p.note ? ` (${p.note.slice(0, 150)})` : ""}`)
+    .join(" ");
+  console.log(`${mark}  ${entry.name}  probes: ${probeSummary}  unallowed divergences: ${report.divergences.filter((d) => !d.allowed).length}`);
   for (const d of report.divergences.filter((x) => !x.allowed).slice(0, 20)) {
     console.log(`   ${d.side} [${d.ctx}] ${d.api} ${d.args.slice(0, 120)}`);
   }

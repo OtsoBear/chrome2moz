@@ -15,7 +15,7 @@ describe("normalizeTrace", () => {
     expect(n.args).not.toContain("abcdefgh");
     expect(n.args).not.toContain("1753791234567");
   });
-  it("strips the `temporary` key (Firefox temp-install-only harness noise)", () => {
+  it("strips the `temporary` key from runtime.onInstalled:fired only (Firefox temp-install-only harness noise)", () => {
     const [n] = normalizeTrace([ev("runtime.onInstalled:fired", [{ reason: "install", temporary: true }])]);
     expect(n.args).not.toContain("temporary");
     const [chrome, firefox] = normalizeTrace([
@@ -23,6 +23,60 @@ describe("normalizeTrace", () => {
       ev("runtime.onInstalled:fired", [{ reason: "install", temporary: true }]),
     ]);
     expect(chrome.args).toBe(firefox.args);
+  });
+  it("does NOT strip a `temporary` key on any other event (scoped to onInstalled only)", () => {
+    const [n] = normalizeTrace([ev("storage.local.set", [{ temporary: true, other: 1 }])]);
+    expect(n.args).toContain("temporary");
+  });
+  it("maps positional ids in tabs.on*:fired args (not just object-keyed ids)", () => {
+    // tabs.onUpdated fires as (tabId, changeInfo, tab) — tabId is a bare positional number,
+    // not nested under a key named tabId/id/windowId, so ID_KEY's key-based check alone
+    // would never touch it. normalizeTrace is called separately per side in the real runner
+    // (each gets its own fresh idMap), so mirror that here rather than combining into one call.
+    const [chrome] = normalizeTrace([ev("tabs.onUpdated:fired", [1141107017, { status: "complete" }], "background")]);
+    const [firefox] = normalizeTrace([ev("tabs.onUpdated:fired", [2, { status: "complete" }], "background")]);
+    expect(chrome.args).toBe(firefox.args);
+    expect(chrome.args).toContain("<id:1>");
+  });
+  it("does not touch positional numbers on events other than tabs.on*:fired", () => {
+    const [n] = normalizeTrace([ev("someApi.call", [42])]);
+    expect(n.args).toBe("[42]");
+  });
+  it("scrubs epoch-magnitude numbers (10 or 13 digit, optionally fractional) to <time>", () => {
+    const [ten] = normalizeTrace([ev("x.y", [{ lastAccessed: 1785383263 }])]);
+    expect(ten.args).toContain("<time>");
+    expect(ten.args).not.toContain("1785383263");
+    const [thirteenFrac] = normalizeTrace([ev("x.y", [{ lastAccessed: 1785383263679.716 }])]);
+    expect(thirteenFrac.args).toContain("<time>");
+    expect(thirteenFrac.args).not.toContain("1785383263679");
+    // a small, clearly-not-a-timestamp number must survive untouched
+    const [small] = normalizeTrace([ev("x.y", [{ index: 3 }])]);
+    expect(small.args).toContain("3");
+    expect(small.args).not.toContain("<time>");
+  });
+  it("projects Tab-shaped objects down to url/title/status/index/active, dropping engine-specific fields", () => {
+    const chromeTab = {
+      id: 1, windowId: 2, index: 1, active: true, status: "loading",
+      frozen: false, groupId: -1, selected: true, audible: false, height: 759,
+    };
+    const firefoxTab = {
+      id: 1, windowId: 2, index: 1, active: true, status: "loading",
+      attention: false, hidden: false, isArticle: null, sharingState: { camera: false }, height: 825,
+    };
+    const [chrome, firefox] = normalizeTrace([
+      ev("tabs.create:resolve", [chromeTab]),
+      ev("tabs.create:resolve", [firefoxTab]),
+    ]);
+    expect(chrome.args).toBe(firefox.args);
+    expect(chrome.args).not.toContain("frozen");
+    expect(chrome.args).not.toContain("attention");
+    expect(chrome.args).not.toContain("height");
+  });
+  it("keeps url/title on a Tab-shaped object when present, and omits them when absent (permission-gated)", () => {
+    const [withUrl] = normalizeTrace([ev("tabs.create:resolve", [{ id: 1, windowId: 2, index: 0, active: true, url: "https://example.com/" }])]);
+    expect(withUrl.args).toContain("example.com");
+    const [withoutUrl] = normalizeTrace([ev("tabs.create:resolve", [{ id: 1, windowId: 2, index: 0, active: true }])]);
+    expect(withoutUrl.args).not.toContain("url");
   });
 });
 
@@ -53,5 +107,24 @@ describe("diffTraces", () => {
     expect(d.some((x) => x.side === "a")).toBe(true);
     expect(d.some((x) => x.side === "b")).toBe(true);
     expect(d.every((x) => x.allowed === false)).toBe(true);
+  });
+  it("supports an api#substring allowlist form that also requires the substring in args", () => {
+    const a = normalizeTrace([ev("net.fetch", ["GET", "https://onenote.com/strings?x=1"])]);
+    const allowed = diffTraces(a, [], ["net.fetch#onenote.com/strings"]);
+    expect(allowed[0].allowed).toBe(true);
+
+    const b = normalizeTrace([ev("net.fetch", ["GET", "https://example.com/other"])]);
+    const notAllowed = diffTraces(b, [], ["net.fetch#onenote.com/strings"]);
+    expect(notAllowed[0].allowed).toBe(false);
+  });
+  it("api#substring still requires the api glob to match, independent of the substring", () => {
+    const a = normalizeTrace([ev("runtime.sendMessage", ["hello"])]);
+    const d = diffTraces(a, [], ["net.fetch#hello"]);
+    expect(d[0].allowed).toBe(false);
+  });
+  it("plain (no #) patterns keep matching on api name only, as before", () => {
+    const a = normalizeTrace([ev("tabGroups.query", [{ anything: "at all" }])]);
+    const d = diffTraces(a, [], ["tabGroups.*"]);
+    expect(d[0].allowed).toBe(true);
   });
 });
