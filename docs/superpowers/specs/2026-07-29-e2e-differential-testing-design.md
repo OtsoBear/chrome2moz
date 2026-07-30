@@ -32,7 +32,7 @@ e2e/
 Per-extension pipeline:
 
 1. **Fetch** — download pinned `.crx` from Google's public CRX endpoint, cached by version
-2. **Instrument** — inject spy shim into original (repack) and into converted build (`chrome2moz convert --instrument`)
+2. **Instrument** — a single TS injector inserts the spy shim into both the original (unpacked) and the converted output post-conversion. One implementation for both sides guarantees symmetric instrumentation; no converter changes needed
 3. **Launch** — Playwright drives Chromium (original), selenium-webdriver + geckodriver drives Firefox (converted, temporary add-on install). Both under `xvfb-run`, both routed through the replay proxy
 4. **Probe** — identical stimulus sequence in both browsers (see Probes)
 5. **Collect** — API traces + external observables from both sides
@@ -87,7 +87,7 @@ Results feed a generated table in the README plus a badge ("N extensions verifie
 - Transparent `Proxy` wrappers over every `chrome.*`/`browser.*` namespace the extension's permissions grant, plus `fetch`/`XMLHttpRequest`/`WebSocket`
 - Records: API path, normalized args, result/error, context (background/content/popup)
 - **Transparency requirement:** must not alter feature detection — wrap existing properties only, never add missing namespaces. Verified by a dedicated shim test suite
-- Chrome side: shim prepended during CRX repack. Firefox side: injected by `convert --instrument` (new converter flag)
+- Both sides: shim injected by the harness's TS injector after unpack/conversion (same code path → symmetric by construction)
 - `alarms` wrapper supports fast-forward: harness command fires scheduled alarms immediately
 
 ## Web snapshots (differential fixtures)
