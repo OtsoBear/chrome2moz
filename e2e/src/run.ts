@@ -107,10 +107,14 @@ async function runOne(entry: CorpusEntry): Promise<ExtReport> {
 // upload of e2e/results/ still has the failing run to inspect, not just the (possibly
 // flake-cleared) second attempt. Skips the heavy build artifacts (source/converted builds,
 // the packed .xpi) — those are reproducible from the corpus and not needed for forensics.
-const HEAVY_ARTIFACTS = new Set(["source", "converted", "chrome-instrumented", "converted.xpi", "attempt1"]);
+const HEAVY_ARTIFACTS = new Set(["source", "converted", "chrome-instrumented", "converted.xpi"]);
+// The destination is a SIBLING of the per-extension work dir (results/<id>-attempt1), because
+// runOne rmSyncs the work dir itself at the start of the retry — anything preserved inside it
+// would be wiped along with the rest.
 function preserveAttempt1(work: string): void {
   if (!existsSync(work)) return;
-  const dest = join(work, "attempt1");
+  const dest = `${work}-attempt1`;
+  rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
   for (const name of readdirSync(work)) {
     if (HEAVY_ARTIFACTS.has(name)) continue;
