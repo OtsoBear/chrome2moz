@@ -63,3 +63,39 @@ Observed behaviors:
 - A visible Firefox window appeared during the run, as expected for a spike (no headless flag was set). `driver.quit()` and `server.close()` shut down cleanly with no dangling processes.
 
 No changes were needed to the spike script vs. the brief; the MV3 event-page shape worked as-is, so the MV2-fallback branch in Step 2 was not exercised.
+
+## Commands
+
+Ran `pnpm exec tsx spikes/spike-commands.ts` from `e2e/` with `playwright@1.54.0` (Chromium) and `selenium-webdriver@4.46.0` + Firefox 152 (`geckodriver` via Selenium Manager), on macOS.
+
+**Verdict: neither browser fires `chrome.commands.onCommand` from synthetic input. Commands probe ships as `skipped: dispatch-unsupported` per the brief's fallback.**
+
+Output:
+
+```
+chromium onCommand fired after Control+Shift+9: {}
+chromium onCommand fired after Meta+Shift+9: {}
+=== chromium verdict === { fired: false, chord: null }
+firefox cmd-fired hits after Control+Shift+9: []
+firefox cmd-fired hits after Meta+Shift+9: []
+=== firefox verdict === { fired: false, chord: null }
+```
+
+### Chromium (Playwright `keyboard.press`)
+
+- **Did not fire** for either `Control+Shift+9` or `Meta+Shift+9`, checked via `sw.evaluate(() => chrome.storage.local.get("lastCommand"))` after each chord.
+- The macOS caveat in the brief is real and was confirmed directly: a diagnostic call to `chrome.commands.getAll()` from the service worker showed the registered shortcut as `"⇧⌘9"` (Shift+Cmd+9) — i.e. Chrome's MacCtrl→Command mapping applies to the manifest's `Ctrl+Shift+9` default binding on macOS, exactly as the brief warned. So `Meta+Shift+9` (not `Control+Shift+9`) is the chord that *should* match the registered accelerator on this platform — but even that correct chord form did not trigger `onCommand`.
+- Root-cause check: a throwaway diagnostic page (not committed) added a page-level `window.addEventListener("keydown", ...)` before calling `page.keyboard.press("Meta+Shift+9")`. The DOM **did** receive all three keydown events with the correct modifiers (`Meta/meta=true`, `Shift/meta=true/shift=true`, `9/meta=true/shift=true`), proving Playwright's CDP-based key dispatch reaches the page's content process correctly. Yet `chrome.commands.onCommand` still never fired.
+- Conclusion: `chrome.commands` shortcuts are matched by the browser's native UI-level accelerator table, which sits *above* the content process and is normally the thing that intercepts the keystroke before it would even reach a page's DOM. Playwright's `Input.dispatchKeyEvent` (CDP) injects events into the renderer/content-process input pipeline directly and does not go through that native accelerator interception path, so it can deliver keys to a web page but cannot trigger a registered extension command. This matches widely-reported Playwright/Puppeteer limitations around testing extension keyboard shortcuts.
+
+### Firefox (WebDriver Actions)
+
+- **Did not fire** for either `Control+Shift+9` or `Meta+Shift+9`, checked via the content-script relay described below.
+- Readback mechanism used (simpler than the brief's message-passing sketch, chosen because it worked on the first try): the FF test extension's `background.js` sets `chrome.storage.local.lastCommand` on `commands.onCommand` (same as the real hello-extension); its `content.js` adds a `chrome.storage.onChanged` listener that, on a `lastCommand` change, does `fetch("http://127.0.0.1:41802/cmd-fired?cmd=...")` against the spike's local HTTP server. The spike just checks the server's hit log — no need for a second relay hop through `runtime.sendMessage`.
+- Root-cause check (mirrors the Chromium one): a throwaway diagnostic page (not committed) with a page-level `keydown` listener confirmed `driver.actions().keyDown(Key.CONTROL/META).keyDown(Key.SHIFT).sendKeys("9")...perform()` reaches the DOM correctly for both modifiers (`Control/ctrl=true/shift=true` and `Meta/meta=true/shift=true` observed on keydown; the final key event reported `key: "("` — Shift+9's produced character on a US layout — rather than `"9"`, which is expected and irrelevant here since `chrome.commands` matching is based on the physical key code, not the DOM `KeyboardEvent.key` value). As with Chromium, the DOM saw the keys but the extension's `onCommand` listener never fired.
+- Conclusion: same root cause as Chromium — WebDriver's synthetic Actions-API key dispatch lands in the content process's input pipeline but does not pass through Firefox's native keyboard-shortcut (accelerator) handling that `browser.commands` shortcuts are registered against.
+- Per the brief, `Ctrl+Shift+9` (no Mac-specific override) was tried first since Firefox does not apply Chrome's MacCtrl→Command auto-translation; `Meta+Shift+9` was also tried for parity with the Chromium half. Neither fired, so the platform-specific chord question is moot here — the dispatch path itself doesn't reach the accelerator table regardless of chord form.
+
+### Decision
+
+Both browsers: **did not fire**, for the same underlying reason (synthetic input from both Playwright/CDP and Selenium/WebDriver bypasses the browser's native global-accelerator table that `chrome.commands`/`browser.commands` shortcuts are matched against). This is a clean, well-understood negative result, not a chord-mismatch or timing issue — confirmed via DOM-level keydown diagnostics on both browsers showing correct key delivery. Per the brief's fallback: the commands probe ships as `skipped: dispatch-unsupported` in later tasks' reports; later tasks should treat it as optional and not block on it.
