@@ -60,3 +60,5 @@ web/pkg/
 # Update it with: cargo run chrome-only-apis
 # It gets embedded in binaries at compile-time
 !chrome_only_apis.json
+# Local test binaries
+/test_transform

@@ -38,6 +38,16 @@ Per-extension pipeline:
 5. **Collect** — API traces + external observables from both sides
 6. **Diff** — normalized structural diff; unallowed divergence = failure
 
+### Three-way baseline run
+
+Each extension also runs a third config: the **unconverted original loaded directly in Firefox**, same probes. Per-extension verdict:
+
+- `worked-anyway` — original passes in Firefox unmodified (conversion not needed for this one)
+- `fixed-by-conversion` — original diverges/breaks in Firefox, converted build passes
+- `broken-either-way` — converted build still diverges (converter gap → issue to fix)
+
+Results feed a generated table in the README plus a badge ("N extensions verified equivalent, M fixed by conversion"). This quantifies the converter's value per extension and shows which corpus entries actually exercise it.
+
 ### Components
 
 | Component | Tech | Role |
@@ -70,6 +80,7 @@ Per-extension pipeline:
 - `allowed_diffs`: glob patterns over trace events for *expected* divergence (e.g. Firefox `tabGroups` no-op stub)
 - `quarantined`: runs and reports but does not block CI
 - LatexToCalc is the flagship first entry (local source, not CWS-fetched)
+- OneNote Web Clipper (`gojbdfnpnhogfdgjbigejoaolejmgdhk`) is a permanent regression entry: it calls `management.uninstallSelf()` on Firefox detection, the exact failure class trace-diffing exists to catch (fixed in 255ca35)
 
 ## Instrumentation shim
 
@@ -146,6 +157,6 @@ v1.5: **monkey crawler** — generically click every button/input in popup and o
 
 ## Phasing
 
-- **v1 (PR-blocking):** fetch, instrument, launch, probes 1–4 + 6, trace diff, snapshots, clipboard readback (flagship LatexToCalc's core output is clipboard), coverage, CI
+- **v1 (PR-blocking):** fetch, instrument, launch, probes 1–4 + 6, trace diff, three-way baseline run + results table/badge, snapshots, clipboard readback (flagship LatexToCalc's core output is clipboard), coverage, CI
 - **v1.1:** kill/wake probe (5), downloads observable
 - **v1.5 (advisory first):** monkey crawler, LLM visual judge, structural-visual checks (zero-size/overflow/a11y-tree), perf ratio flags, D-Bus notifications

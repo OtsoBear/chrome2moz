@@ -13,7 +13,7 @@ A Rust-based CLI tool and WebAssembly library that converts Chrome Manifest V3 e
 
 Firefox natively supports `chrome.*` APIs, but some Chrome-only APIs don't exist in Firefox. This tool:
 
-- **Detects 176 Chrome-only APIs** (e.g., `chrome.offscreen`, `chrome.declarativeContent`, `chrome.tabGroups`)
+- **Detects Chrome-only APIs** (e.g., `chrome.offscreen`, `chrome.declarativeContent`, `chrome.tabGroups`) - see [current coverage](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)
 - **Converts manifests** (service workers → event pages, permission separation)
 - **Provides runtime shims** for Chrome-only APIs
 - **Checks keyboard shortcuts** for conflicts with Firefox built-ins
@@ -78,9 +78,7 @@ cargo build --release
 - Handle `importScripts()` → Add to manifest
 
 **Firefox Compatibility Fixes**:
-- Automatically disables `browser.management.uninstallSelf()` calls
-- Prevents extensions from self-destructing when detecting Firefox
-- See [docs/FIREFOX_SELF_UNINSTALL_FIX.md](./docs/FIREFOX_SELF_UNINSTALL_FIX.md) for details
+- Disables `browser.management.uninstallSelf()` calls so extensions that detect Firefox don't self-destruct (seen in OneNote Web Clipper)
 
 ## API Coverage
 **[View Full API Status →](./CHROME_ONLY_API_IMPLEMENTATION_STATUS.md)**

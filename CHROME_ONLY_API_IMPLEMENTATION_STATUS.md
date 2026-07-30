@@ -11,14 +11,14 @@ This document tracks WebExtension APIs that are supported in Chrome but not in F
 | Category | Count | Percentage |
 |----------|-------|------------|
 | **Total Chrome-Only APIs** | 217 | 100% |
-| ** Implemented** | 61 | 34% |
-| ** Not Implemented** | 118 | 66% |
+| ** Implemented** | 61 | 28% |
+| ** Not Implemented** | 156 | 72% |
 
 **Note**: Total includes 176 APIs from MDN data + 3 additional APIs we've implemented that aren't yet in MDN's dataset (`chrome.offscreen`, `chrome.declarativeContent`, `chrome.action.openPopup`).
 
 ##  Implementation Categories
 
-###  Fully Implemented (58 APIs)
+### Fully Implemented
 
 These APIs have automatic conversion support with compatibility shims or converters:
 
@@ -26,7 +26,6 @@ These APIs have automatic conversion support with compatibility shims or convert
 - Full conversion from Chrome's DNR to Firefox's webRequest API
 - **Implementation**: [`src/transformer/shims.rs:490-995`](src/transformer/shims.rs#L490)
 - **Features**: Block, redirect, modifyHeaders, upgradeScheme actions
-- **Status**: Production-ready with comprehensive rule conversion
 
 <details>
 <summary>View all declarativeNetRequest APIs (46)</summary>
@@ -121,7 +120,7 @@ These APIs have automatic conversion support with compatibility shims or convert
 - `tabGroups.TabGroup.shared` - Part of tabGroups converter
 - `userScripts.execute` - Part of userScripts shim
 
-###  Not Yet Implemented (118 APIs)
+### Not Yet Implemented
 
 These APIs are detected but don't have automatic conversion support yet:
 
