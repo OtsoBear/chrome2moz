@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "C2M Hello",
+  "version": "1.0",
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{ "matches": ["http://127.0.0.1/*"], "js": ["content.js"] }],
+  "action": { "default_popup": "popup.html" },
+  "permissions": ["storage"],
+  "commands": {
+    "hello-command": {
+      "suggested_key": { "default": "Ctrl+Shift+9" },
+      "description": "test command"
+    }
+  }
+}

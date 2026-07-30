@@ -1,0 +1,22 @@
+{
+  "name": "chrome2moz-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "e2e": "tsx src/run.ts"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^24.0.0",
+    "@types/picomatch": "^4.0.2",
+    "@types/selenium-webdriver": "^4.1.28",
+    "adm-zip": "^0.5.16",
+    "picomatch": "^4.0.2",
+    "playwright": "^1.54.0",
+    "selenium-webdriver": "^4.34.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
