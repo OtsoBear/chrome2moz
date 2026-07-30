@@ -106,6 +106,20 @@ Contributions welcome! See [ARCHITECTURE.md](./ARCHITECTURE.md) for architectura
 cargo fmt && cargo clippy && cargo test
 ```
 
+### E2E differential tests
+
+`e2e/` runs every corpus extension through the converter, loads the original in
+Chromium and the converted build in Firefox, and diffs their API-call traces.
+CI fails on unallowed divergence.
+
+```bash
+cd e2e && pnpm install && pnpm e2e            # full corpus
+pnpm e2e --only latextocalc                    # one extension
+```
+
+Corpus lives in `e2e/corpus.json`. See
+`docs/superpowers/specs/2026-07-29-e2e-differential-testing-design.md`.
+
 ## Resources
 
 - [Report Issues](https://github.com/OtsoBear/chrome2moz/issues)
