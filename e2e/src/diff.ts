@@ -57,7 +57,7 @@ export function diffTraces(a: NormalizedEvent[], b: NormalizedEvent[], allowedDi
   for (const ctx of ctxs) {
     const ea = a.filter((e) => e.ctx === ctx);
     const eb = b.filter((e) => e.ctx === ctx);
-    const key = (e: NormalizedEvent) => `${e.api}`;
+    const key = (e: NormalizedEvent) => `${e.api} ${e.args}`;
     const [inA, inB] = lcsKeep(ea.map(key), eb.map(key));
     ea.forEach((e, i) => { if (!inA[i]) out.push({ side: "a", event: e, allowed: isAllowed(e.api) }); });
     eb.forEach((e, i) => { if (!inB[i]) out.push({ side: "b", event: e, allowed: isAllowed(e.api) }); });

@@ -36,4 +36,13 @@ describe("diffTraces", () => {
     const d = diffTraces(a, [], ["tabGroups.*"]);
     expect(d[0].allowed).toBe(true);
   });
+  it("detects content divergence when same api has different args", () => {
+    const a = normalizeTrace([ev("storage.local.set", [{ a: 1 }])]);
+    const b = normalizeTrace([ev("storage.local.set", [{ a: 2 }])]);
+    const d = diffTraces(a, b, []);
+    expect(d).toHaveLength(2);
+    expect(d.some((x) => x.side === "a")).toBe(true);
+    expect(d.some((x) => x.side === "b")).toBe(true);
+    expect(d.every((x) => x.allowed === false)).toBe(true);
+  });
 });
