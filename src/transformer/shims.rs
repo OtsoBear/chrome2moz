@@ -1334,6 +1334,26 @@ fn create_offscreen_polyfill() -> NewFile {
   let frame = null;
   let frameUrl = null;
 
+  // Callback-form support: Chrome's chrome.* APIs accept an optional trailing
+  // callback and, when present, invoke it with the result instead of
+  // returning a Promise. Kept simple: cb(result) on success, cb(undefined) on
+  // failure (approximating runtime.lastError semantics without wiring it up).
+  // Promise form is unchanged when no callback is passed.
+  function settle(promise, cb) {
+    if (typeof cb !== "function") return promise;
+    promise.then((result) => cb(result), () => cb(undefined));
+    return undefined;
+  }
+
+  // A disconnected iframe (e.g. the extension called window.close() inside it,
+  // or the event page tore it down some other way) is treated as no document
+  // at all, so createDocument/hasDocument/getContexts self-heal instead of
+  // staying stuck on a stale reference.
+  function frameAlive() {
+    if (frame && !frame.isConnected) { frame = null; frameUrl = null; }
+    return frame !== null;
+  }
+
   // Enum backfill: turns filter entries like [ContextType.OFFSCREEN_DOCUMENT]
   // from [undefined] into a real string, removing the Firefox validation throw.
   for (const r of roots) {
@@ -1344,31 +1364,38 @@ fn create_offscreen_polyfill() -> NewFile {
 
   if (typeof rt.getContexts === "function") {
     const origGetContexts = rt.getContexts.bind(rt);
-    const wrapped = async function (filter) {
-      const f = filter || {};
-      const hasTypes = Array.isArray(f.contextTypes);
-      const wantsOffscreen = !hasTypes || f.contextTypes.some((t) => t === "OFFSCREEN_DOCUMENT" || t === undefined);
-      let results = [];
-      if (!hasTypes) {
-        results = await origGetContexts(f);
-      } else {
-        const rest = f.contextTypes.filter((t) => typeof t === "string" && t !== "OFFSCREEN_DOCUMENT");
-        // Empty contextTypes matches everything in the native API — never pass it through.
-        if (rest.length > 0) results = await origGetContexts({ ...f, contextTypes: rest });
-      }
-      if (wantsOffscreen && frame && frameUrl) {
-        const urlOk = !Array.isArray(f.documentUrls) || f.documentUrls.includes(frameUrl);
-        if (urlOk) {
-          results = results.concat([{
-            contextType: "OFFSCREEN_DOCUMENT",
-            documentUrl: frameUrl,
-            documentOrigin: new URL(frameUrl).origin,
-            contextId: "c2m-offscreen-0",
-            frameId: 0, tabId: -1, windowId: -1, incognito: false,
-          }]);
+    const wrapped = function (filter, cb) {
+      const p = (async () => {
+        const f = filter || {};
+        const rawTypes = Array.isArray(f.contextTypes) ? f.contextTypes : null;
+        // An explicit empty contextTypes array matches everything, same as
+        // omitting the filter entirely — native semantics, must not be
+        // treated as "match nothing".
+        const hasTypes = rawTypes !== null && rawTypes.length > 0;
+        const wantsOffscreen = !hasTypes || rawTypes.some((t) => t === "OFFSCREEN_DOCUMENT" || t === undefined);
+        let results = [];
+        if (!hasTypes) {
+          results = await origGetContexts(f);
+        } else {
+          const rest = rawTypes.filter((t) => typeof t === "string" && t !== "OFFSCREEN_DOCUMENT");
+          // Empty contextTypes matches everything in the native API — never pass it through.
+          if (rest.length > 0) results = await origGetContexts({ ...f, contextTypes: rest });
         }
-      }
-      return results;
+        if (wantsOffscreen && frameAlive() && frameUrl) {
+          const urlOk = !Array.isArray(f.documentUrls) || f.documentUrls.includes(frameUrl);
+          if (urlOk) {
+            results = results.concat([{
+              contextType: "OFFSCREEN_DOCUMENT",
+              documentUrl: frameUrl,
+              documentOrigin: new URL(frameUrl).origin,
+              contextId: "c2m-offscreen-0",
+              frameId: 0, tabId: -1, windowId: -1, incognito: false,
+            }]);
+          }
+        }
+        return results;
+      })();
+      return settle(p, cb);
     };
     for (const r of roots) { if (r.runtime && typeof r.runtime.getContexts === "function") r.runtime.getContexts = wrapped; }
   }
@@ -1382,14 +1409,24 @@ fn create_offscreen_polyfill() -> NewFile {
         LOCAL_STORAGE: "LOCAL_STORAGE", MATCH_MEDIA: "MATCH_MEDIA", TESTING: "TESTING",
         USER_MEDIA: "USER_MEDIA", WEB_RTC: "WEB_RTC", WORKERS: "WORKERS",
       },
-      createDocument(opts) {
-        return new Promise((resolve, reject) => {
-          if (frame) { reject(new Error("Only a single offscreen document may be created.")); return; }
+      createDocument(opts, cb) {
+        const p = new Promise((resolve, reject) => {
+          if (frameAlive()) { reject(new Error("Only a single offscreen document may be created.")); return; }
           const url = opts && opts.url;
           if (typeof url !== "string") { reject(new Error("offscreen.createDocument: url is required.")); return; }
+          const resolvedUrl = rt.getURL(url);
+          // Chrome only allows offscreen documents at extension-origin URLs.
+          // Derived from location.origin (a property read, not an API call)
+          // rather than rt.getURL("") so this guard doesn't add a second
+          // traced runtime.getURL call on top of the one just above.
+          const extOrigin = location.origin + "/";
+          if (!resolvedUrl.startsWith(extOrigin)) {
+            reject(new Error("offscreen.createDocument: url must be an extension page."));
+            return;
+          }
           const el = document.createElement("iframe");
           el.style.display = "none";
-          el.src = rt.getURL(url);
+          el.src = resolvedUrl;
           el.addEventListener("load", () => resolve(), { once: true });
           el.addEventListener("error", () => {
             el.remove(); frame = null; frameUrl = null;
@@ -1399,13 +1436,19 @@ fn create_offscreen_polyfill() -> NewFile {
           frameUrl = el.src;
           (document.body || document.documentElement).appendChild(el);
         });
+        return settle(p, cb);
       },
-      closeDocument() {
-        if (!frame) return Promise.reject(new Error("No current offscreen document."));
-        frame.remove(); frame = null; frameUrl = null;
-        return Promise.resolve();
+      closeDocument(cb) {
+        let p;
+        if (frameAlive()) {
+          frame.remove(); frame = null; frameUrl = null;
+          p = Promise.resolve();
+        } else {
+          p = Promise.reject(new Error("No current offscreen document."));
+        }
+        return settle(p, cb);
       },
-      hasDocument() { return Promise.resolve(frame !== null); },
+      hasDocument(cb) { return settle(Promise.resolve(frameAlive()), cb); },
     };
     for (const r of roots) { if (!r.offscreen) r.offscreen = offscreen; }
   }
@@ -1458,5 +1501,21 @@ mod tests {
         assert!(shim.content.contains("OFFSCREEN_DOCUMENT"));
         assert!(shim.content.contains("createDocument"));
         assert!(shim.content.contains("getContexts"));
+    }
+
+    #[test]
+    fn test_offscreen_polyfill_shim_callback_and_parity_fixes() {
+        let shim = create_offscreen_polyfill();
+        // Callback-form support (createDocument/closeDocument/hasDocument/getContexts).
+        assert!(shim.content.contains("function settle(promise, cb)"));
+        assert!(shim.content.contains("createDocument(opts, cb)"));
+        assert!(shim.content.contains("closeDocument(cb)"));
+        assert!(shim.content.contains("hasDocument(cb)"));
+        // isConnected self-heal (window.close()/teardown recovery).
+        assert!(shim.content.contains("frameAlive"));
+        assert!(shim.content.contains("isConnected"));
+        // Extension-origin guard on createDocument.
+        assert!(shim.content.contains("location.origin"));
+        assert!(shim.content.contains("must be an extension page"));
     }
 }
