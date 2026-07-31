@@ -3,7 +3,7 @@
 //! These tests use real Chrome extension examples and validate output
 //! using Mozilla's addons-linter.
 
-use chrome2moz::{convert_extension, ConversionOptions, CalculatorType};
+use chrome2moz::{convert_extension, analyze_extension, transform_extension, ConversionOptions, CalculatorType};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -805,5 +805,47 @@ fn test_offscreen_polyfill_precedes_extension_scripts_in_manifest() {
         polyfill_index < extension_index,
         "offscreen-polyfill.js ({}) must precede background.js ({}) in background.scripts: {:?}",
         polyfill_index, extension_index, script_names
+    );
+}
+
+/// A triggering extension (JS references OFFSCREEN_DOCUMENT) that has NO
+/// `background` section at all must not get the polyfill file (it would be
+/// orphaned — nothing in the output ever loads it) and the conversion
+/// report must not claim an injection that didn't happen.
+#[test]
+fn test_offscreen_polyfill_not_injected_without_background_section() {
+    let temp_input = TempDir::new().unwrap();
+
+    let manifest = r#"{
+  "manifest_version": 3,
+  "name": "No Background Offscreen Test",
+  "version": "1.0.0",
+  "description": "References OFFSCREEN_DOCUMENT but declares no background section",
+  "permissions": ["storage"]
+}"#;
+    fs::write(temp_input.path().join("manifest.json"), manifest).unwrap();
+
+    let content_script = r#"
+async function ensureOffscreenDocument() {
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+  });
+  console.log(contexts);
+}
+"#;
+    fs::write(temp_input.path().join("content.js"), content_script).unwrap();
+
+    let extension = chrome2moz::packager::load_extension(temp_input.path()).unwrap();
+    let context = analyze_extension(extension).unwrap();
+    let result = transform_extension(context).unwrap();
+
+    assert!(
+        !result.new_files.iter().any(|f| f.path == PathBuf::from("shims/offscreen-polyfill.js")),
+        "offscreen-polyfill.js should NOT be generated for an extension with no background section (it would be orphaned)"
+    );
+    assert!(
+        !result.report.manifest_changes.iter().any(|c| c.contains("offscreen polyfill")),
+        "conversion report should not claim an offscreen polyfill injection when none occurred: {:?}",
+        result.report.manifest_changes
     );
 }

@@ -38,7 +38,7 @@ pub fn transform_extension(context: ConversionContext) -> Result<ConversionResul
     if context.source.manifest.background.as_ref().and_then(|b| b.service_worker.as_ref()).is_some() {
         manifest_changes.push("Added background.scripts for Firefox event page compatibility".to_string());
     }
-    if shims::should_inject_offscreen_polyfill(&context.source) {
+    if shims::will_inject_offscreen_polyfill(&context.source) {
         manifest_changes.push("Injected offscreen polyfill (shims/offscreen-polyfill.js) for chrome.offscreen / getContexts(OFFSCREEN_DOCUMENT) compatibility".to_string());
     }
 

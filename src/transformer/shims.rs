@@ -38,14 +38,14 @@ pub fn generate_shims(context: &ConversionContext) -> Result<Vec<NewFile>> {
     // actually touch the offscreen API surface (unlike the shims above, it
     // is not universally safe/no-op to include, since it patches
     // runtime.getContexts for every extension otherwise).
-    if should_inject_offscreen_polyfill(&context.source) {
+    if will_inject_offscreen_polyfill(&context.source) {
         shims.push(create_offscreen_polyfill());
     }
 
     Ok(shims)
 }
 
-/// Determine whether the extension needs the runtime offscreen polyfill.
+/// Determine whether the extension *references* the offscreen API surface.
 ///
 /// Trigger rule: the manifest declares the `offscreen` permission, OR any
 /// packaged `.js` file references `chrome.offscreen` or `OFFSCREEN_DOCUMENT`
@@ -53,6 +53,10 @@ pub fn generate_shims(context: &ConversionContext) -> Result<Vec<NewFile>> {
 /// Firefox has no `chrome.offscreen` and its `getContexts` rejects the
 /// `OFFSCREEN_DOCUMENT` context type, so unguarded use throws and kills the
 /// extension at runtime unless this polyfill is present.
+///
+/// This is necessary but not sufficient for injection — see
+/// [`will_inject_offscreen_polyfill`], which also requires a `background`
+/// section to attach the shim to.
 pub fn should_inject_offscreen_polyfill(source: &Extension) -> bool {
     if source.manifest.permissions.iter().any(|p| p == "offscreen") {
         return true;
@@ -64,6 +68,21 @@ pub fn should_inject_offscreen_polyfill(source: &Extension) -> bool {
             .map(|content| content.contains("chrome.offscreen") || content.contains("OFFSCREEN_DOCUMENT"))
             .unwrap_or(false)
     })
+}
+
+/// Single source of truth for whether the offscreen polyfill will actually
+/// be wired into the output. Used by all three call sites that need to agree
+/// on this (the shim generator, `background.scripts` wiring in
+/// `ManifestTransformer::transform_background`, and the conversion report
+/// note in `transform_extension`) so they can never drift out of sync.
+///
+/// Requires BOTH the trigger (`should_inject_offscreen_polyfill`) AND a
+/// `background` section to exist: `background.scripts` is the only place the
+/// shim is ever loaded from, so without one, writing the file would produce
+/// an orphaned shim that's never referenced, and noting it in the report
+/// would misleadingly claim an injection that didn't happen.
+pub fn will_inject_offscreen_polyfill(source: &Extension) -> bool {
+    should_inject_offscreen_polyfill(source) && source.manifest.background.is_some()
 }
 
 // NOTE: We removed browser-polyfill.js, promise-wrapper.js, action-compat.js, and import-scripts-polyfill.js
