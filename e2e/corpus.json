@@ -50,6 +50,18 @@
       },
       "_note": "gates nothing until a fixture host matching its content_scripts (onenote.officeapps.live.com) exists -- tracked in issue #5",
       "quarantined": true
+    },
+    {
+      "id": "offscreen-gate",
+      "name": "C2M Offscreen Gate",
+      "source": "local:testdata/offscreen-extension",
+      "allowed_diffs": ["offscreen.*", "runtime.getContexts*", "runtime.getURL#offscreen.html"],
+      "quarantined": false,
+      "_notes": {
+        "offscreen.*": "Firefox-side offscreen.* calls hit the converter's polyfill, which is injected AFTER the spy shim walks the API surface (issue #6) -- so they are untraced on that side and appear chrome-only (offscreen.createDocument / :resolve). Behavioral equivalence is asserted by the storage.local.set offscreenResult write, which must match on both sides.",
+        "runtime.getContexts*": "Same issue #6 root cause, one layer deeper than expected: the polyfill's getContexts wrapper replaces chrome.runtime.getContexts directly (shims/offscreen-polyfill.js), so on Firefox the call never reaches the spy-wrapped original at all when the extension's contextTypes filter is exactly [OFFSCREEN_DOCUMENT] -- the wrapper intentionally skips calling through to the real getContexts in that case (an empty contextTypes array matches everything in the native API, so it must never be passed through). Verified via trace inspection this is a tracing gap, not a functional one: Chrome's real getContexts call resolves to [] (no offscreen doc registered yet) and the extension proceeds identically on both sides.",
+        "runtime.getURL#offscreen.html": "The polyfill's offscreen.createDocument implementation calls rt.getURL(url) itself (to resolve the iframe src), in addition to the extension's own t.getURL(\"offscreen.html\") call -- so Firefox observes one extra runtime.getURL call the spy shim did capture (this one runs through the untouched original, unlike getContexts above). Pinned to the literal URL since this extension has only one; a runtime.getURL divergence for any other URL is NOT masked."
+      }
     }
   ]
 }
