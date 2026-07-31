@@ -36,6 +36,8 @@ Both files are back to their Task 1 scaffold state in the committed tree; only `
 
 Ran `pnpm exec tsx spikes/spike-firefox.ts` from `e2e/` with `selenium-webdriver@4.34.0` (Selenium Manager auto-downloaded `geckodriver`) against **Firefox 152.0.6** at `/Applications/Firefox.app`, on macOS.
 
+> **Update (30.07.2026):** local Firefox auto-updated to **153.0.1**, which Selenium Manager now pairs with **geckodriver 0.37.1**. That geckodriver version refuses WebDriver navigation (`driver.get(...)`) to internal URL schemes (`moz-extension:`, `about:`, `chrome:`) unless the geckodriver server itself is launched with `--allow-system-access` (a geckodriver process flag, not a `moz:firefoxOptions` capability — geckodriver rejects it if set there). `src/firefoxDriver.ts` now passes this via `firefox.ServiceBuilder().addArguments("--allow-system-access")` on `Builder().setFirefoxService(...)`; no marionette chrome-context switch needed (chrome context rejects `Get` outright with "Only supported in content context"). Re-verified: full `pnpm e2e` green.
+
 **Verdict: all three things worked, first try, no deviations from the brief's script.** No MV2 fallback was needed — MV3 `background.scripts` (event page, not `type: "module"` service worker) installed and ran without error.
 
 Output:

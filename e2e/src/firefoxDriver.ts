@@ -21,7 +21,18 @@ const KEYMAP: Record<string, string> = {
 export async function launchFirefox(xpiPath: string, geckoId: string): Promise<BrowserSession> {
   const opts = new firefox.Options();
   opts.addArguments("-headless");
-  const driver: WebDriver = await new Builder().forBrowser("firefox").setFirefoxOptions(opts).build();
+  // geckodriver >=0.37 (Firefox 153+) refuses WebDriver navigation to internal
+  // schemes (moz-extension:, about:, chrome:) unless the server is started with
+  // --allow-system-access; without it `driver.get("moz-extension://...")` throws
+  // UnsupportedOperationError. This is a geckodriver launch flag, not a
+  // moz:firefoxOptions capability (geckodriver rejects it there explicitly), so it
+  // has to go on the ServiceBuilder that spawns geckodriver itself.
+  const service = new firefox.ServiceBuilder().addArguments("--allow-system-access");
+  const driver: WebDriver = await new Builder()
+    .forBrowser("firefox")
+    .setFirefoxOptions(opts)
+    .setFirefoxService(service)
+    .build();
   let extensionId: string;
   try {
     await (driver as unknown as { installAddon(p: string, temp: boolean): Promise<void> }).installAddon(xpiPath, true);
