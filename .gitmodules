@@ -1,0 +1,3 @@
+[submodule "LatexToCalc"]
+	path = LatexToCalc
+	url = https://github.com/OtsoBear/LatexToCalc.git

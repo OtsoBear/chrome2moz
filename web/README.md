@@ -4,11 +4,10 @@ A WebAssembly-powered web interface for converting Chrome MV3 extensions to Fire
 
 ## Features
 
-- **Drag & Drop Upload**: Simply drag your Chrome extension ZIP file onto the interface
-- **Real-time Analysis**: Get instant feedback on compatibility issues before conversion
-- **One-Click Conversion**: Convert your extension with a single click
-- **Detailed Reports**: View comprehensive analysis of incompatibilities and fixes
-- **Instant Download**: Download the converted Firefox extension immediately
+- Drag & drop upload of extension ZIPs
+- Compatibility analysis before conversion
+- Conversion report listing incompatibilities and applied fixes
+- Download of the converted `.xpi`, all client-side (nothing uploaded to a server)
 
 ## Building the Web UI
 
@@ -105,15 +104,6 @@ web/
     └── ...
 ```
 
-## Browser Compatibility
-
-The web UI requires a modern browser with WebAssembly support:
-
-- ✅ Chrome/Edge 57+
-- ✅ Firefox 52+
-- ✅ Safari 11+
-- ✅ Opera 44+
-
 ## Development
 
 ### Rebuilding After Changes
@@ -141,14 +131,9 @@ To deploy the web UI to a static hosting service:
    ./build-wasm.sh
    ```
 
-2. Deploy the entire `web/` directory to your hosting service:
-   - GitHub Pages
-   - Netlify
-   - Vercel
-   - Cloudflare Pages
-   - Any static hosting service
+2. Deploy the `web/` directory to any static host (this repo uses GitHub Pages via `deploy.yml`)
 
-3. Ensure the server is configured to serve `.wasm` files with the correct MIME type:
+3. Ensure the server serves `.wasm` files with the correct MIME type:
    ```
    application/wasm
    ```

@@ -486,9 +486,9 @@ cargo build --release   # CLI
 
 ## Detection Scope
 
-### What IS Detected ✅
+### What IS Detected
 
-**1. Chrome-Only APIs (176 APIs)** - Fully detected with detailed warnings
+**1. Chrome-Only APIs** - Fully detected with detailed warnings
 - `chrome.offscreen.*`, `chrome.declarativeContent.*`, `chrome.tabGroups.*`
 - `chrome.storage.session.*`, `chrome.sidePanel.*`, etc.
 
@@ -654,7 +654,6 @@ const analysisJson = analyze_keyboard_shortcuts(zipData);
 ---
 
 **Version**: 0.2.0
-**Status**: Production-ready
 **Maintainer**: [@OtsoBear](https://github.com/OtsoBear)
 
 **For user documentation, see [`README.md`](README.md)**
