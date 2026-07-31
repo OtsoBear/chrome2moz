@@ -103,7 +103,17 @@ impl ManifestTransformer {
             scripts.push("shims/downloads-compat.js".to_string());
             scripts.push("shims/privacy-stub.js".to_string());
             scripts.push("shims/notifications-compat.js".to_string());
-            
+
+            // Conditional shim: only injected (and only listed here) when the
+            // extension actually needs it — see `shims::should_inject_offscreen_polyfill`.
+            // Must stay in sync with `shims::generate_shims`, which decides
+            // whether `shims/offscreen-polyfill.js` is actually written to disk.
+            if let Some(src) = source {
+                if crate::transformer::shims::should_inject_offscreen_polyfill(src) {
+                    scripts.push("shims/offscreen-polyfill.js".to_string());
+                }
+            }
+
             // Add original background scripts (and extract importScripts)
             if let Some(existing_scripts) = &background.scripts {
                 for script in existing_scripts {

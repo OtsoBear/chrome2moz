@@ -3,7 +3,7 @@
 //! NOTE: Firefox natively supports chrome.* namespace, so we only generate shims
 //! for APIs that don't exist in Firefox or have significant behavioral differences.
 
-use crate::models::{ConversionContext, NewFile};
+use crate::models::{ConversionContext, Extension, NewFile};
 use anyhow::Result;
 use std::path::PathBuf;
 
@@ -17,9 +17,9 @@ use std::path::PathBuf;
 /// - Runtime interception for API differences
 /// - Polyfills for missing APIs
 /// - Cross-browser compatibility layer
-pub fn generate_shims(_context: &ConversionContext) -> Result<Vec<NewFile>> {
+pub fn generate_shims(context: &ConversionContext) -> Result<Vec<NewFile>> {
     let mut shims = Vec::new();
-    
+
     // Always include all shims - they have runtime guards and self-activate
     // This is simpler than parsing JS files to detect usage
     // NOTE: No importScripts polyfill needed - we extract and add scripts to manifest instead!
@@ -33,8 +33,37 @@ pub fn generate_shims(_context: &ConversionContext) -> Result<Vec<NewFile>> {
     shims.push(create_downloads_compat());
     shims.push(create_privacy_stub());
     shims.push(create_notifications_compat());
-    
+
+    // Conditional: the offscreen polyfill is only needed by extensions that
+    // actually touch the offscreen API surface (unlike the shims above, it
+    // is not universally safe/no-op to include, since it patches
+    // runtime.getContexts for every extension otherwise).
+    if should_inject_offscreen_polyfill(&context.source) {
+        shims.push(create_offscreen_polyfill());
+    }
+
     Ok(shims)
+}
+
+/// Determine whether the extension needs the runtime offscreen polyfill.
+///
+/// Trigger rule: the manifest declares the `offscreen` permission, OR any
+/// packaged `.js` file references `chrome.offscreen` or `OFFSCREEN_DOCUMENT`
+/// (e.g. via `chrome.runtime.getContexts({ contextTypes: [...OFFSCREEN_DOCUMENT] })`).
+/// Firefox has no `chrome.offscreen` and its `getContexts` rejects the
+/// `OFFSCREEN_DOCUMENT` context type, so unguarded use throws and kills the
+/// extension at runtime unless this polyfill is present.
+pub fn should_inject_offscreen_polyfill(source: &Extension) -> bool {
+    if source.manifest.permissions.iter().any(|p| p == "offscreen") {
+        return true;
+    }
+
+    source.get_javascript_files().iter().any(|path| {
+        source
+            .get_file_content(path)
+            .map(|content| content.contains("chrome.offscreen") || content.contains("OFFSCREEN_DOCUMENT"))
+            .unwrap_or(false)
+    })
 }
 
 // NOTE: We removed browser-polyfill.js, promise-wrapper.js, action-compat.js, and import-scripts-polyfill.js
@@ -1267,10 +1296,114 @@ fn create_notifications_compat() -> NewFile {
     }
 }
 
+/// Runtime offscreen polyfill: Firefox has no `chrome.offscreen` and its
+/// `getContexts` rejects `OFFSCREEN_DOCUMENT`. The converted background is an
+/// event page WITH a DOM, so the offscreen document is emulated as a hidden
+/// iframe. Content embedded verbatim per the offscreen-polyfill spec.
+fn create_offscreen_polyfill() -> NewFile {
+    let content = r#"// chrome2moz: offscreen polyfill. Firefox has no chrome.offscreen and its
+// getContexts rejects OFFSCREEN_DOCUMENT. The converted background is an event
+// page WITH a DOM, so the offscreen document is emulated as a hidden iframe.
+(() => {
+  const roots = [];
+  if (typeof browser !== "undefined") roots.push(browser);
+  if (typeof chrome !== "undefined" && (typeof browser === "undefined" || chrome !== browser)) roots.push(chrome);
+  const api = roots[0];
+  const rt = api && api.runtime;
+  if (!rt) return;
+
+  let frame = null;
+  let frameUrl = null;
+
+  // Enum backfill: turns filter entries like [ContextType.OFFSCREEN_DOCUMENT]
+  // from [undefined] into a real string, removing the Firefox validation throw.
+  for (const r of roots) {
+    if (!r.runtime) continue;
+    r.runtime.ContextType = r.runtime.ContextType || {};
+    if (!r.runtime.ContextType.OFFSCREEN_DOCUMENT) r.runtime.ContextType.OFFSCREEN_DOCUMENT = "OFFSCREEN_DOCUMENT";
+  }
+
+  if (typeof rt.getContexts === "function") {
+    const origGetContexts = rt.getContexts.bind(rt);
+    const wrapped = async function (filter) {
+      const f = filter || {};
+      const hasTypes = Array.isArray(f.contextTypes);
+      const wantsOffscreen = !hasTypes || f.contextTypes.some((t) => t === "OFFSCREEN_DOCUMENT" || t === undefined);
+      let results = [];
+      if (!hasTypes) {
+        results = await origGetContexts(f);
+      } else {
+        const rest = f.contextTypes.filter((t) => typeof t === "string" && t !== "OFFSCREEN_DOCUMENT");
+        // Empty contextTypes matches everything in the native API — never pass it through.
+        if (rest.length > 0) results = await origGetContexts({ ...f, contextTypes: rest });
+      }
+      if (wantsOffscreen && frame && frameUrl) {
+        const urlOk = !Array.isArray(f.documentUrls) || f.documentUrls.includes(frameUrl);
+        if (urlOk) {
+          results = results.concat([{
+            contextType: "OFFSCREEN_DOCUMENT",
+            documentUrl: frameUrl,
+            documentOrigin: new URL(frameUrl).origin,
+            contextId: "c2m-offscreen-0",
+            frameId: 0, tabId: -1, windowId: -1, incognito: false,
+          }]);
+        }
+      }
+      return results;
+    };
+    for (const r of roots) { if (r.runtime && typeof r.runtime.getContexts === "function") r.runtime.getContexts = wrapped; }
+  }
+
+  if (!api.offscreen) {
+    const offscreen = {
+      Reason: {
+        AUDIO_PLAYBACK: "AUDIO_PLAYBACK", BATTERY_STATUS: "BATTERY_STATUS", BLOBS: "BLOBS",
+        CLIPBOARD: "CLIPBOARD", DISPLAY_MEDIA: "DISPLAY_MEDIA", DOM_PARSER: "DOM_PARSER",
+        DOM_SCRAPING: "DOM_SCRAPING", GEOLOCATION: "GEOLOCATION", IFRAME_SCRIPTING: "IFRAME_SCRIPTING",
+        LOCAL_STORAGE: "LOCAL_STORAGE", MATCH_MEDIA: "MATCH_MEDIA", TESTING: "TESTING",
+        USER_MEDIA: "USER_MEDIA", WEB_RTC: "WEB_RTC", WORKERS: "WORKERS",
+      },
+      createDocument(opts) {
+        return new Promise((resolve, reject) => {
+          if (frame) { reject(new Error("Only a single offscreen document may be created.")); return; }
+          const url = opts && opts.url;
+          if (typeof url !== "string") { reject(new Error("offscreen.createDocument: url is required.")); return; }
+          const el = document.createElement("iframe");
+          el.style.display = "none";
+          el.src = rt.getURL(url);
+          el.addEventListener("load", () => resolve(), { once: true });
+          el.addEventListener("error", () => {
+            el.remove(); frame = null; frameUrl = null;
+            reject(new Error("offscreen.createDocument: failed to load " + url));
+          }, { once: true });
+          frame = el;
+          frameUrl = el.src;
+          (document.body || document.documentElement).appendChild(el);
+        });
+      },
+      closeDocument() {
+        if (!frame) return Promise.reject(new Error("No current offscreen document."));
+        frame.remove(); frame = null; frameUrl = null;
+        return Promise.resolve();
+      },
+      hasDocument() { return Promise.resolve(frame !== null); },
+    };
+    for (const r of roots) { if (!r.offscreen) r.offscreen = offscreen; }
+  }
+})();
+"#;
+
+    NewFile {
+        path: PathBuf::from("shims/offscreen-polyfill.js"),
+        content: content.to_string(),
+        purpose: "Polyfills chrome.offscreen and getContexts(OFFSCREEN_DOCUMENT) via a hidden iframe (Firefox has no native offscreen API)".to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_storage_session_shim_generation() {
         let shim = create_storage_session_compat();
@@ -1297,5 +1430,14 @@ mod tests {
         let shim = create_execute_script_compat();
         assert!(shim.content.contains("executeScript"));
         assert!(shim.content.contains("cross-browser"));
+    }
+
+    #[test]
+    fn test_offscreen_polyfill_shim_generation() {
+        let shim = create_offscreen_polyfill();
+        assert_eq!(shim.path, PathBuf::from("shims/offscreen-polyfill.js"));
+        assert!(shim.content.contains("OFFSCREEN_DOCUMENT"));
+        assert!(shim.content.contains("createDocument"));
+        assert!(shim.content.contains("getContexts"));
     }
 }
