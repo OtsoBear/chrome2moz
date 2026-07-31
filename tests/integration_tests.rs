@@ -3,7 +3,7 @@
 //! These tests use real Chrome extension examples and validate output
 //! using Mozilla's addons-linter.
 
-use chrome2moz::{convert_extension, ConversionOptions, CalculatorType};
+use chrome2moz::{convert_extension, analyze_extension, transform_extension, ConversionOptions, CalculatorType};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -634,6 +634,218 @@ chrome.storage.local.get("key", (result) => {
     let manifest_content = fs::read_to_string(temp_output.path().join("manifest.json")).unwrap();
     assert!(manifest_content.contains("browser_specific_settings"),
             "Manifest should have Firefox-specific settings");
-    
+
     let _ = validate_with_linter(&temp_output.path().to_path_buf());
+}
+
+/// Create a test extension that declares the "offscreen" permission but
+/// never actually references the API in JS (permission-only trigger case).
+fn create_offscreen_permission_extension(dir: &PathBuf) {
+    let manifest = r#"{
+  "manifest_version": 3,
+  "name": "Offscreen Permission Test",
+  "version": "1.0.0",
+  "description": "Declares offscreen permission",
+  "permissions": ["offscreen", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}"#;
+    fs::write(dir.join("manifest.json"), manifest).unwrap();
+
+    let background = r#"
+chrome.storage.local.get("key", (result) => {
+  console.log(result);
+});
+"#;
+    fs::write(dir.join("background.js"), background).unwrap();
+}
+
+/// Create a test extension that uses `chrome.offscreen` / OFFSCREEN_DOCUMENT
+/// in JS without declaring the "offscreen" permission (JS-usage trigger case).
+fn create_offscreen_js_usage_extension(dir: &PathBuf) {
+    let manifest = r#"{
+  "manifest_version": 3,
+  "name": "Offscreen JS Usage Test",
+  "version": "1.0.0",
+  "description": "Uses chrome.offscreen without declaring the permission",
+  "permissions": ["storage"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}"#;
+    fs::write(dir.join("manifest.json"), manifest).unwrap();
+
+    let background = r#"
+async function ensureOffscreenDocument() {
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+  });
+  if (contexts.length === 0) {
+    await chrome.offscreen.createDocument({
+      url: "offscreen.html",
+      reasons: [chrome.offscreen.Reason.DOM_PARSER],
+      justification: "Parse DOM",
+    });
+  }
+}
+"#;
+    fs::write(dir.join("background.js"), background).unwrap();
+}
+
+/// Create a plain extension with no offscreen permission and no offscreen
+/// JS usage, to verify the polyfill does NOT fire.
+fn create_unrelated_extension(dir: &PathBuf) {
+    let manifest = r#"{
+  "manifest_version": 3,
+  "name": "Unrelated Test",
+  "version": "1.0.0",
+  "description": "No offscreen usage anywhere",
+  "permissions": ["storage", "tabs"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}"#;
+    fs::write(dir.join("manifest.json"), manifest).unwrap();
+
+    let background = r#"
+chrome.tabs.query({ active: true }, (tabs) => {
+  chrome.storage.local.set({ tabs });
+});
+"#;
+    fs::write(dir.join("background.js"), background).unwrap();
+}
+
+fn default_options() -> ConversionOptions {
+    ConversionOptions {
+        interactive: false,
+        target_calculator: CalculatorType::Both,
+        preserve_chrome_compatibility: true,
+        generate_report: false,
+    }
+}
+
+#[test]
+fn test_offscreen_polyfill_triggers_on_permission() {
+    let temp_input = TempDir::new().unwrap();
+    let temp_output = TempDir::new().unwrap();
+
+    create_offscreen_permission_extension(&temp_input.path().to_path_buf());
+
+    let result = convert_extension(temp_input.path(), temp_output.path(), default_options());
+    assert!(result.is_ok(), "Conversion failed: {:?}", result.err());
+
+    let shim_path = temp_output.path().join("shims/offscreen-polyfill.js");
+    assert!(shim_path.exists(), "offscreen-polyfill.js should be created when manifest declares the offscreen permission");
+
+    let shim_content = fs::read_to_string(&shim_path).unwrap();
+    assert!(shim_content.contains("OFFSCREEN_DOCUMENT"), "Shim missing OFFSCREEN_DOCUMENT handling");
+    assert!(shim_content.contains("createDocument"), "Shim missing createDocument implementation");
+
+    let _ = validate_with_linter(&temp_output.path().to_path_buf());
+}
+
+#[test]
+fn test_offscreen_polyfill_triggers_on_js_usage() {
+    let temp_input = TempDir::new().unwrap();
+    let temp_output = TempDir::new().unwrap();
+
+    create_offscreen_js_usage_extension(&temp_input.path().to_path_buf());
+
+    let result = convert_extension(temp_input.path(), temp_output.path(), default_options());
+    assert!(result.is_ok(), "Conversion failed: {:?}", result.err());
+
+    let shim_path = temp_output.path().join("shims/offscreen-polyfill.js");
+    assert!(shim_path.exists(), "offscreen-polyfill.js should be created when JS references chrome.offscreen/OFFSCREEN_DOCUMENT even without the manifest permission");
+
+    let _ = validate_with_linter(&temp_output.path().to_path_buf());
+}
+
+#[test]
+fn test_offscreen_polyfill_does_not_trigger_on_unrelated_extension() {
+    let temp_input = TempDir::new().unwrap();
+    let temp_output = TempDir::new().unwrap();
+
+    create_unrelated_extension(&temp_input.path().to_path_buf());
+
+    let result = convert_extension(temp_input.path(), temp_output.path(), default_options());
+    assert!(result.is_ok(), "Conversion failed: {:?}", result.err());
+
+    let shim_path = temp_output.path().join("shims/offscreen-polyfill.js");
+    assert!(!shim_path.exists(), "offscreen-polyfill.js should NOT be created for extensions with no offscreen permission or usage");
+}
+
+#[test]
+fn test_offscreen_polyfill_precedes_extension_scripts_in_manifest() {
+    let temp_input = TempDir::new().unwrap();
+    let temp_output = TempDir::new().unwrap();
+
+    create_offscreen_permission_extension(&temp_input.path().to_path_buf());
+
+    let result = convert_extension(temp_input.path(), temp_output.path(), default_options());
+    assert!(result.is_ok(), "Conversion failed: {:?}", result.err());
+
+    let manifest_content = fs::read_to_string(temp_output.path().join("manifest.json")).unwrap();
+    let manifest_json: serde_json::Value = serde_json::from_str(&manifest_content).unwrap();
+    let scripts = manifest_json["background"]["scripts"]
+        .as_array()
+        .expect("background.scripts should be an array");
+    let script_names: Vec<&str> = scripts.iter().map(|v| v.as_str().unwrap()).collect();
+
+    let polyfill_index = script_names
+        .iter()
+        .position(|s| *s == "shims/offscreen-polyfill.js")
+        .expect("shims/offscreen-polyfill.js should be listed in background.scripts");
+    let extension_index = script_names
+        .iter()
+        .position(|s| *s == "background.js")
+        .expect("background.js should be listed in background.scripts");
+
+    assert!(
+        polyfill_index < extension_index,
+        "offscreen-polyfill.js ({}) must precede background.js ({}) in background.scripts: {:?}",
+        polyfill_index, extension_index, script_names
+    );
+}
+
+/// A triggering extension (JS references OFFSCREEN_DOCUMENT) that has NO
+/// `background` section at all must not get the polyfill file (it would be
+/// orphaned — nothing in the output ever loads it) and the conversion
+/// report must not claim an injection that didn't happen.
+#[test]
+fn test_offscreen_polyfill_not_injected_without_background_section() {
+    let temp_input = TempDir::new().unwrap();
+
+    let manifest = r#"{
+  "manifest_version": 3,
+  "name": "No Background Offscreen Test",
+  "version": "1.0.0",
+  "description": "References OFFSCREEN_DOCUMENT but declares no background section",
+  "permissions": ["storage"]
+}"#;
+    fs::write(temp_input.path().join("manifest.json"), manifest).unwrap();
+
+    let content_script = r#"
+async function ensureOffscreenDocument() {
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT],
+  });
+  console.log(contexts);
+}
+"#;
+    fs::write(temp_input.path().join("content.js"), content_script).unwrap();
+
+    let extension = chrome2moz::packager::load_extension(temp_input.path()).unwrap();
+    let context = analyze_extension(extension).unwrap();
+    let result = transform_extension(context).unwrap();
+
+    assert!(
+        !result.new_files.iter().any(|f| f.path == PathBuf::from("shims/offscreen-polyfill.js")),
+        "offscreen-polyfill.js should NOT be generated for an extension with no background section (it would be orphaned)"
+    );
+    assert!(
+        !result.report.manifest_changes.iter().any(|c| c.contains("offscreen polyfill")),
+        "conversion report should not claim an offscreen polyfill injection when none occurred: {:?}",
+        result.report.manifest_changes
+    );
 }
