@@ -33,4 +33,23 @@ chrome.runtime.onInstalled.addListener(async () => {
   } catch (e) {
     await chrome.storage.local.set({ offscreenAsyncError: String(e) });
   }
+
+  // Probe 3: exercises the polyfill's callback-form support on
+  // offscreen.hasDocument/closeDocument (callback-to-Promise helper below),
+  // then recreates the document and repeats the parse round-trip via the
+  // same Promise-form path probe 1 already uses -- proving a close +
+  // recreate cycle driven through the callback API still works.
+  try {
+    const hadBefore = await callbackToPromise(chrome.offscreen.hasDocument.bind(chrome.offscreen));
+    await callbackToPromise(chrome.offscreen.closeDocument.bind(chrome.offscreen));
+    const hadAfterClose = await callbackToPromise(chrome.offscreen.hasDocument.bind(chrome.offscreen));
+    const result = await viaOffscreen("<p id='x'>hello callback offscreen</p>", "parse");
+    await chrome.storage.local.set({ offscreenCallbackResult: { hadBefore, hadAfterClose, result } });
+  } catch (e) {
+    await chrome.storage.local.set({ offscreenCallbackError: String(e) });
+  }
 });
+
+function callbackToPromise(fn, ...args) {
+  return new Promise((resolve) => fn(...args, (result) => resolve(result)));
+}
