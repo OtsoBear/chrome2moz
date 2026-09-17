@@ -13,6 +13,9 @@ export type CorpusEntry = {
   /** Free-form note about why this entry is quarantined (or other entry-level caveats). */
   _note?: string;
   quarantined: boolean;
+  /** Extra hosts to include in web-snapshot domain discovery, beyond the manifest's own
+   * content_scripts.matches / host_permissions (see src/domains.ts, src/snapshotBuild.ts). */
+  extra_domains?: string[];
 };
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
