@@ -30,6 +30,7 @@ pub fn generate_shims(context: &ConversionContext) -> Result<Vec<NewFile>> {
     shims.push(create_user_scripts_compat());
     shims.push(create_tabs_windows_compat());
     shims.push(create_runtime_compat());
+    shims.push(create_runtime_onmessage_compat());
     shims.push(create_downloads_compat());
     shims.push(create_privacy_stub());
     shims.push(create_notifications_compat());
@@ -1067,6 +1068,63 @@ fn create_runtime_compat() -> NewFile {
     }
 }
 
+/// runtime.onMessage async-listener + synchronous sendResponse compat.
+/// Chrome honors a sendResponse() called synchronously inside a listener even when the
+/// listener is an async function (which implicitly returns a Promise). Firefox instead uses
+/// the async listener's returned Promise (resolves to undefined without an explicit return),
+/// discarding the sendResponse value. This restores Chrome's precedence. See issue #8.
+fn create_runtime_onmessage_compat() -> NewFile {
+    let content = r#"// chrome2moz: runtime.onMessage async-listener + synchronous sendResponse compat.
+// Chrome honors a sendResponse() invoked synchronously inside a listener, even when the
+// listener is an async function (which implicitly returns a Promise). Firefox instead uses
+// the async listener's own returned Promise (resolves to undefined without an explicit
+// return), discarding the synchronous sendResponse value. This wrapper restores Chrome's
+// precedence: when a listener answers synchronously via sendResponse AND returns a thenable,
+// the returned Promise is suppressed so Firefox delivers the sendResponse value. All other
+// shapes (return true then a late sendResponse; a listener that returns a real Promise value;
+// a plain synchronous listener) are left native.
+(() => {
+  const roots = [];
+  if (typeof browser !== "undefined") roots.push(browser);
+  if (typeof chrome !== "undefined" && (typeof browser === "undefined" || chrome !== browser)) roots.push(chrome);
+  for (const api of roots) {
+    const rt = api && api.runtime;
+    if (!rt) continue;
+    for (const evName of ["onMessage", "onMessageExternal"]) {
+      const ev = rt[evName];
+      if (!ev || typeof ev.addListener !== "function" || ev.__c2m_onmessage_compat__) continue;
+      const origAdd = ev.addListener.bind(ev);
+      const origRemove = typeof ev.removeListener === "function" ? ev.removeListener.bind(ev) : null;
+      const origHas = typeof ev.hasListener === "function" ? ev.hasListener.bind(ev) : null;
+      const map = new WeakMap();
+      ev.addListener = function (cb, ...rest) {
+        if (typeof cb !== "function") return origAdd(cb, ...rest);
+        const wrapped = function (message, sender, sendResponse) {
+          let respondedSync = false;
+          const wrappedSR = (v) => { respondedSync = true; try { return sendResponse(v); } catch (e) {} };
+          const ret = cb.call(this, message, sender, wrappedSR);
+          // Async listener that already answered synchronously via sendResponse: suppress its
+          // Promise so Firefox uses the sendResponse value we just delivered (Chrome order).
+          if (respondedSync && ret && typeof ret.then === "function") return undefined;
+          return ret;
+        };
+        try { map.set(cb, wrapped); } catch (e) {}
+        return origAdd(wrapped, ...rest);
+      };
+      if (origRemove) ev.removeListener = function (cb, ...rest) { let w; try { w = map.get(cb); } catch (e) {} return origRemove(w || cb, ...rest); };
+      if (origHas) ev.hasListener = function (cb, ...rest) { let w; try { w = map.get(cb); } catch (e) {} return origHas(w || cb, ...rest); };
+      try { Object.defineProperty(ev, "__c2m_onmessage_compat__", { value: true }); } catch (e) { ev.__c2m_onmessage_compat__ = true; }
+    }
+  }
+})();
+"#;
+    NewFile {
+        path: PathBuf::from("shims/runtime-onmessage-compat.js"),
+        content: content.to_string(),
+        purpose: "Restores Chrome's sendResponse precedence for async onMessage listeners on Firefox (issue #8)".to_string(),
+    }
+}
+
 fn create_downloads_compat() -> NewFile {
     let content = r#"// Downloads API compatibility for Chrome-specific features
 // Firefox doesn't support some Chrome-only downloads methods
@@ -1517,5 +1575,22 @@ mod tests {
         // Extension-origin guard on createDocument.
         assert!(shim.content.contains("location.origin"));
         assert!(shim.content.contains("must be an extension page"));
+    }
+
+    #[test]
+    fn test_runtime_onmessage_compat_generation() {
+        let shim = create_runtime_onmessage_compat();
+        assert_eq!(shim.path, PathBuf::from("shims/runtime-onmessage-compat.js"));
+        // Core behavior markers.
+        assert!(shim.content.contains("onMessage"));
+        assert!(shim.content.contains("onMessageExternal"));
+        assert!(shim.content.contains("respondedSync"));
+        assert!(shim.content.contains("typeof ret.then === \"function\""));
+        // Idempotency guard + both-roots patching.
+        assert!(shim.content.contains("__c2m_onmessage_compat__"));
+        assert!(shim.content.contains("typeof browser"));
+        // Preserves removeListener/hasListener mapping.
+        assert!(shim.content.contains("removeListener"));
+        assert!(shim.content.contains("WeakMap"));
     }
 }

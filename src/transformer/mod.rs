@@ -8,6 +8,7 @@ pub mod tab_groups;
 pub mod offscreen_converter;
 pub mod declarative_content_converter;
 pub mod chrome_only_converter;
+pub mod html_inject;
 
 pub use manifest::ManifestTransformer;
 pub use javascript::JavaScriptTransformer;
@@ -70,6 +71,47 @@ pub fn transform_extension(context: ConversionContext) -> Result<ConversionResul
         }
     }
     
+    // 2b. Inject the onMessage compat shim as the first <script> of every packaged HTML
+    // page (offscreen documents / popups / options pages), so listeners there are fixed
+    // too; background.scripts injection (manifest transform) alone cannot reach them.
+    let html_paths: Vec<_> = context.source.files.keys()
+        .filter(|p| {
+            p.extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.eq_ignore_ascii_case("html") || e.eq_ignore_ascii_case("htm"))
+                .unwrap_or(false)
+        })
+        .cloned()
+        .collect();
+    let mut html_pages_injected = 0usize;
+    for html_path in &html_paths {
+        if let Some(content) = context.source.get_file_content(html_path) {
+            if let Some(new_content) = html_inject::inject_onmessage_shim(&content, html_path) {
+                html_pages_injected += 1;
+                modified_files.push(crate::models::ModifiedFile {
+                    path: html_path.clone(),
+                    original_content: content.clone(),
+                    new_content,
+                    changes: vec![crate::models::FileChange {
+                        line_number: 0,
+                        change_type: crate::models::ChangeType::Addition,
+                        description: "Injected onMessage compat shim".to_string(),
+                        old_code: None,
+                        new_code: Some(
+                            "<script src=\"shims/runtime-onmessage-compat.js\"></script>".to_string(),
+                        ),
+                    }],
+                });
+            }
+        }
+    }
+    if html_pages_injected > 0 {
+        manifest_changes.push(format!(
+            "Injected runtime.onMessage compat shim into {} HTML page(s) (issue #8)",
+            html_pages_injected
+        ));
+    }
+
     // 3. Generate compatibility shims
     let shims = generate_shims(&context)?;
     
