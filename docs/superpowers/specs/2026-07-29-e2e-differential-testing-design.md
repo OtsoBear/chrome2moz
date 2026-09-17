@@ -161,7 +161,7 @@ v1.5: **monkey crawler** — generically click every button/input in popup and o
 - Auth-gated behavior: out of scope
 - Observer effect: shim could mask exotic feature-detection paths; transparency test suite shrinks this to near-zero
 - Semantic correctness: equivalence only, by design
-- Shim ordering: the spy shim is injected at position 0 on the converted side, before chrome2moz's own compat shims (`shims/*.js`) — API surface those compat shims add is untraced on the Firefox side, surfacing as false chrome-only divergences that get allowlisted. Fix + corpus re-triage tracked in [chrome2moz#6](https://github.com/OtsoBear/chrome2moz/issues/6)
+- Shim ordering: fixed. The spy shim is now injected immediately after the last `shims/*.js` entry in `background.scripts` (falling back to position 0 when there are none), so it wraps the fully assembled, compat-shimmed API surface instead of a pre-polyfill stub. Converter-added API surface (`chrome.offscreen.*`, the `runtime.getContexts` override) is now traced on the Firefox side; the corpus was re-triaged against the corrected traces ([chrome2moz#6](https://github.com/OtsoBear/chrome2moz/issues/6)). Residual, real (non-tracing) divergences remain and are allowlisted with trace-referenced notes: `runtime.getContexts:resolve`'s payload shape genuinely differs between the polyfill's emulation and native browser internals; `runtime.getURL` gets one extra firefox-only call because the polyfill resolves the offscreen iframe's URL itself. OneNote's deeper cascade (issue #8, an async `onMessage` listener paired with manual `sendResponse`) is unrelated to shim ordering and remains a separate, permanent divergence.
 
 ## Spikes (do first, in order)
 

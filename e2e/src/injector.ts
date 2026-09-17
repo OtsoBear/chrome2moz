@@ -33,7 +33,17 @@ export function instrumentExtension(dir: string, side: Side, port: number): void
     m.background.service_worker = "__c2m_bg.js";
   } else if (Array.isArray(m.background?.scripts)) {
     writeFileSync(join(dir, BG_SHIM_NAME), template.replaceAll("__C2M_CTX_OVERRIDE__", "background"));
-    m.background.scripts.unshift(BG_SHIM_NAME);
+    // Insert the spy shim AFTER the converter's own shims/*.js compat layer (issue #6).
+    // The compat shims add/patch API surface (stub namespaces, runtime polyfills); the spy
+    // must wrap the fully assembled surface, so it goes after the last shims/*.js entry and
+    // before the extension's own scripts. When there are no converter shims (unconverted
+    // input, e.g. the chrome-orig side never reaches this branch), fall back to index 0.
+    const scripts: string[] = m.background.scripts;
+    let insertAt = 0;
+    for (let i = 0; i < scripts.length; i++) {
+      if (typeof scripts[i] === "string" && scripts[i].startsWith("shims/")) insertAt = i + 1;
+    }
+    scripts.splice(insertAt, 0, BG_SHIM_NAME);
   }
 
   for (const cs of m.content_scripts ?? []) {
