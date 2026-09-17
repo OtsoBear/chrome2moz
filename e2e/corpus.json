@@ -83,10 +83,11 @@
       "id": "killwake-gate",
       "name": "C2M KillWake Gate",
       "source": "local:testdata/killwake-extension",
-      "allowed_diffs": [],
+      "allowed_diffs": ["tabs.onUpdated:fired"],
       "quarantined": false,
       "_notes": {
         "_purpose": "Kill/wake probe gate (spec Probes #5). Background counts boots in storage.local; killWakeProbe boots it, kills the background (Chromium CDP ServiceWorker.stopAllWorkers; Firefox idle timeout), then opens a second fixture tab to wake it via tabs.onUpdated. The content script reads storage.local on each page so the boot counter reaches the trace. Both sides killed+rebooted => boots go 1 -> 2 identically and MATCH.",
+        "tabs.onUpdated:fired": "The gate registers a top-level tabs.onUpdated listener as its wake trigger, and the spy traces every firing. Chrome and Firefox emit genuinely different native tab-lifecycle sequences for the same probe-driven navigations (Chrome: about:blank loading/complete then the fixture; Firefox: New Tab titles, an isArticle change, different ordering and tab indexes), observed as 39 tabs.onUpdated:fired-only divergences in CI once the random bootMark was removed. This is engine noise, not kill/wake behavior, and it is NOT the gate's evidence: the assertion is the storage.local boot counter (storage.local.set {boots, lastWake} in the background and storage.local.get:resolve in the content script), which is content-pinned, MATCHED on both sides in that same run, and would still diverge if a side failed to reboot after the kill. Same class as LatexToCalc's tabs.create:resolve and OneNote's tabs.onUpdated:fired#getting-started allowances.",
         "_firefox_kill_confirmed": "The kill/wake spike (spikes/RESULTS.md, Kill/Wake section) confirmed, three runs in a row, that Firefox's converted event-page background does idle-terminate past extensions.background.idle.timeout under headless Selenium/WebDriver and reboots (fresh top-level execution, observed via a bootMark that can only change on a genuine restart) on the next tabs.onUpdated-triggering event. No kill-unsupported allowance is needed; both sides are expected to reboot and match."
       }
     }
