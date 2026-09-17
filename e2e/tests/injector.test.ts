@@ -62,4 +62,41 @@ describe("instrumentExtension", () => {
     expect(shim).toContain("42123");
     expect(shim).not.toContain("__C2M_SIDE__");
   });
+
+  it("inserts the bg shim AFTER the converter's shims/*.js compat layer", () => {
+    const dir = makeExt(
+      {
+        manifest_version: 3,
+        background: {
+          scripts: [
+            "shims/storage-session-compat.js",
+            "shims/runtime-compat.js",
+            "config.js",
+            "background.js",
+          ],
+        },
+      },
+      { "config.js": "", "background.js": "" },
+    );
+    instrumentExtension(dir, "firefox-conv", 41999);
+    const m = readManifest(dir);
+    // Spy shim must sit after the last shims/*.js entry, before the extension's own code,
+    // so it wraps the fully assembled (compat-shimmed) API surface.
+    expect(m.background.scripts).toEqual([
+      "shims/storage-session-compat.js",
+      "shims/runtime-compat.js",
+      "__c2m_shim_bg.js",
+      "config.js",
+      "background.js",
+    ]);
+  });
+
+  it("still prepends the bg shim when there are no shims/*.js entries", () => {
+    const dir = makeExt(
+      { manifest_version: 3, background: { scripts: ["bg.js"] } },
+      { "bg.js": "" },
+    );
+    instrumentExtension(dir, "firefox-conv", 41999);
+    expect(readManifest(dir).background.scripts).toEqual(["__c2m_shim_bg.js", "bg.js"]);
+  });
 });

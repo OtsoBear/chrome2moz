@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-function loadShim(fakeChrome: any, opts: { cmdQueue?: any[] } = {}) {
+function loadShim(fakeChrome: any, opts: { cmdQueue?: any[]; navigator?: any } = {}) {
   const src = readFileSync(new URL("../shim/shim.js", import.meta.url), "utf8")
     .replaceAll("__C2M_SIDE__", "chrome-orig")
     .replaceAll("__C2M_PORT__", "41999")
@@ -28,6 +28,7 @@ function loadShim(fakeChrome: any, opts: { cmdQueue?: any[] } = {}) {
     setInterval: (fn: () => void) => { intervals.push(fn); return fn; },
     console,
   };
+  if (opts.navigator) sandbox.navigator = opts.navigator;
   sandbox.globalThis = sandbox;
   sandbox.self = sandbox;
   vm.createContext(sandbox);
@@ -106,5 +107,21 @@ describe("shim", () => {
 
     sandbox.chrome.runtime.onMessage.removeListener(origCb);
     expect(listeners).toEqual(before); // removeListener(origCb) found and removed the wrapped one
+  });
+
+  it("records navigator.clipboard.writeText/readText calls and their resolved value", async () => {
+    const store = { v: "" };
+    const clip = {
+      writeText: (t: string) => { store.v = t; return Promise.resolve(); },
+      readText: () => Promise.resolve(store.v),
+    };
+    const { sandbox, flush, posted } = loadShim(fake, { navigator: { clipboard: clip } });
+    await (sandbox as any).navigator.clipboard.writeText("c2m-clip-xyz");
+    const got = await (sandbox as any).navigator.clipboard.readText();
+    flush();
+    const apis = posted.flatMap((p: any) => p.events.map((e: any) => e.api));
+    expect(got).toBe("c2m-clip-xyz");
+    expect(apis).toContain("clipboard.writeText");
+    expect(apis).toContain("clipboard.readText:resolve");
   });
 });
