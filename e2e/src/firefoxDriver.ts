@@ -44,6 +44,11 @@ export async function launchFirefox(
   opts.setPreference("dom.events.asyncClipboard.readText", true);
   opts.setPreference("dom.events.asyncClipboard.clipboardItem", true);
   opts.setPreference("dom.events.testing.asyncClipboard", true);
+  // Deliberately NOT lowering extensions.background.idle.timeout here: the spy shim's /cmd
+  // polling is plain fetch, which Firefox does not count as extension activity, so a short
+  // idle timeout kills the event page between ordinary probes and the ping relay goes silent
+  // (CI on PR #15 showed exactly that: LatexToCalc ping chrome.ok=true firefox.ok=false).
+  // killBackground() instead idle-waits past Firefox's default 30s window.
   // geckodriver >=0.37 (Firefox 153+) refuses WebDriver navigation to internal
   // schemes (moz-extension:, about:, chrome:) unless the server is started with
   // --allow-system-access; without it `driver.get("moz-extension://...")` throws
@@ -88,6 +93,15 @@ export async function launchFirefox(
       const b64 = await driver.takeScreenshot();
       const { writeFileSync } = await import("node:fs");
       writeFileSync(outPath, Buffer.from(b64, "base64"));
+    },
+    async killBackground() {
+      // Firefox has no WebDriver command to terminate an event page directly. Staying idle
+      // past extensions.background.idle.timeout (default 30000ms, left untouched, see the
+      // launch comment above) lets it terminate. The kill/wake spike (spikes/RESULTS.md,
+      // Kill/Wake) confirmed this idle-driven suspend is real and reboots correctly under
+      // headless WebDriver, so this is reported as a real kill, not a best-effort guess.
+      await driver.sleep(32000); // > default 30s idle timeout
+      return { killed: true, mechanism: "idle-timeout" };
     },
     async close() { await driver.quit(); },
   };

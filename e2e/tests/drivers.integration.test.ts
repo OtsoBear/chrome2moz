@@ -43,4 +43,18 @@ describe("drivers + shim end to end", () => {
     expect(apis).toContain("storage.local.set");
     await t.close();
   }, 60000);
+
+  itIf("chromium killBackground stops the extension service worker", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "c2m-kill-"));
+    cpSync(resolve("testdata/hello-extension"), dir, { recursive: true });
+    instrumentExtension(dir, "chrome-orig", 41994);
+    const t = await startTelemetry(41994);
+    const s = await launchChrome(dir);
+    await new Promise((r) => setTimeout(r, 2000));
+    const res = await s.killBackground();
+    expect(res.killed).toBe(true);
+    expect(res.mechanism).toContain("ServiceWorker");
+    await s.close();
+    await t.close();
+  }, 60000);
 });

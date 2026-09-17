@@ -3,12 +3,15 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+export type KillResult = { killed: boolean; mechanism: string; note?: string };
+
 export interface BrowserSession {
   extensionId: string;
   open(url: string): Promise<void>;
   pressChord(chord: string): Promise<void>;
   openExtensionPage(relPath: string): Promise<void>;
   screenshot(outPath: string): Promise<void>;
+  killBackground(): Promise<KillResult>;
   close(): Promise<void>;
 }
 
@@ -60,6 +63,18 @@ export async function launchChrome(extDir: string, opts: { proxyServer?: string 
       await page.goto(`chrome-extension://${extensionId}/${relPath}`, { waitUntil: "domcontentloaded" });
     },
     async screenshot(outPath) { await page.screenshot({ path: outPath }); },
+    async killBackground() {
+      try {
+        const target = ctx.pages()[0] ?? page;
+        const cdp = await ctx.newCDPSession(target);
+        await cdp.send("ServiceWorker.enable");
+        await cdp.send("ServiceWorker.stopAllWorkers");
+        await cdp.detach().catch(() => {});
+        return { killed: true, mechanism: "cdp:ServiceWorker.stopAllWorkers" };
+      } catch (e) {
+        return { killed: false, mechanism: "cdp:ServiceWorker.stopAllWorkers", note: String(e) };
+      }
+    },
     async close() { await ctx.close(); },
   };
 }

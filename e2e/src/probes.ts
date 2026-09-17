@@ -143,4 +143,33 @@ export async function pingProbe(p: ProbeContext): Promise<ProbeResult> {
   return { name: "ping", status: "ran", note };
 }
 
-export const ALL_PROBES = [installProbe, contentProbe, commandsProbe, popupProbe, pingProbe];
+export async function killWakeProbe(p: ProbeContext): Promise<ProbeResult> {
+  const hasBackground = !!(p.manifest.background && (p.manifest.background.service_worker || p.manifest.background.scripts));
+  if (!hasBackground) return { name: "kill-wake", status: "skipped", note: "no background" };
+  const settle = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // Initial boot: content script on the fixture page reads storage.local (traced as
+  // storage.local.get:resolve on both sides).
+  const url = p.fixtureUrl("basic.html");
+  await p.chrome.open(url);
+  await p.firefox.open(url);
+  await settle(2000);
+
+  const ck = await p.chrome.killBackground();
+  const fk = await p.firefox.killBackground();
+  await settle(800);
+
+  // Wake: opening a second tab fires tabs.onUpdated, which a top-level listener uses to reboot
+  // and re-read/rewrite storage.local (traced again with an incremented boot counter).
+  await p.chrome.open(url);
+  await p.firefox.open(url);
+  await settle(2500);
+
+  const note = `chrome:${JSON.stringify(ck)} firefox:${JSON.stringify(fk)}`;
+  if (!ck.killed || !fk.killed) {
+    return { name: "kill-wake", status: "skipped", note: `kill-unsupported on a side -- ${note}` };
+  }
+  return { name: "kill-wake", status: "ran", note };
+}
+
+export const ALL_PROBES = [installProbe, contentProbe, commandsProbe, popupProbe, pingProbe, killWakeProbe];
