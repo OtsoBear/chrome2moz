@@ -1,15 +1,14 @@
 // Boot counter in storage.local (persists across background restarts on BOTH browsers,
 // unlike storage.session, so the wake behavior is what is under test, not the session shim).
-// bootMark is computed ONCE, synchronously, at top level: it can only change when the whole
-// script re-executes in a fresh global scope (a genuine restart), unlike `boots`, which
-// increments on every recordBoot() call regardless of restart. Both signals reach the trace
-// via the content script's storage.local.get.
-const bootMark = Date.now() + ":" + Math.random();
-
+// Only deterministic values are persisted: a random per-boot marker (as used in the spike to
+// prove a genuine restart) must NOT be stored, because it differs across browsers and would
+// poison the trace diff (every storage.local.set would diverge). The restart evidence here is
+// `boots` advancing after the kill, which the content script's storage.local.get carries
+// into the trace identically on both sides.
 async function recordBoot(reason) {
   const cur = await chrome.storage.local.get(["boots"]);
   const boots = (cur.boots || 0) + 1;
-  await chrome.storage.local.set({ boots, bootMark, lastWake: reason });
+  await chrome.storage.local.set({ boots, lastWake: reason });
 }
 
 recordBoot("startup");

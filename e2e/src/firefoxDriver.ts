@@ -21,11 +21,11 @@ const KEYMAP: Record<string, string> = {
 export async function launchFirefox(xpiPath: string, geckoId: string): Promise<BrowserSession> {
   const opts = new firefox.Options();
   opts.addArguments("-headless");
-  // Kill/wake spike (spikes/RESULTS.md, Kill/Wake section) confirmed, three runs in a row,
-  // that a converted event-page background does idle-terminate past this timeout and reboots
-  // (fresh top-level execution, observed via a bootMark that can only change on a genuine
-  // restart) on the next tabs.onUpdated-triggering event, under headless Selenium/WebDriver.
-  opts.setPreference("extensions.background.idle.timeout", 1000);
+  // Deliberately NOT lowering extensions.background.idle.timeout here: the spy shim's /cmd
+  // polling is plain fetch, which Firefox does not count as extension activity, so a short
+  // idle timeout kills the event page between ordinary probes and the ping relay goes silent
+  // (CI on PR #15 showed exactly that: LatexToCalc ping chrome.ok=true firefox.ok=false).
+  // killBackground() instead idle-waits past Firefox's default 30s window.
   // geckodriver >=0.37 (Firefox 153+) refuses WebDriver navigation to internal
   // schemes (moz-extension:, about:, chrome:) unless the server is started with
   // --allow-system-access; without it `driver.get("moz-extension://...")` throws
@@ -72,11 +72,12 @@ export async function launchFirefox(xpiPath: string, geckoId: string): Promise<B
       writeFileSync(outPath, Buffer.from(b64, "base64"));
     },
     async killBackground() {
-      // Firefox has no WebDriver command to terminate an event page directly. With the
-      // low idle timeout set at launch, staying idle past the window lets it terminate --
-      // confirmed observable and reliable (three runs, spikes/RESULTS.md Kill/Wake) under
+      // Firefox has no WebDriver command to terminate an event page directly. Staying idle
+      // past extensions.background.idle.timeout (default 30000ms, left untouched, see the
+      // launch comment above) lets it terminate. The kill/wake spike (spikes/RESULTS.md,
+      // Kill/Wake) confirmed this idle-driven suspend is real and reboots correctly under
       // headless WebDriver, so this is reported as a real kill, not a best-effort guess.
-      await driver.sleep(1500); // > idle timeout
+      await driver.sleep(32000); // > default 30s idle timeout
       return { killed: true, mechanism: "idle-timeout" };
     },
     async close() { await driver.quit(); },
