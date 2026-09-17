@@ -62,3 +62,4 @@ web/pkg/
 !chrome_only_apis.json
 # Local test binaries
 /test_transform
+__pycache__/

@@ -1,0 +1,12 @@
+{
+  "spike": [
+    { "host": "example.test", "file": "example.test.html", "sha256": "" }
+  ],
+  "gojbdfnpnhogfdgjbigejoaolejmgdhk": [
+    {
+      "host": "onenote.officeapps.live.com",
+      "file": "onenote.officeapps.live.com.html",
+      "sha256": "4106a8d75e999c5fa79d2bad6cd968b9c31de918e0af1c00a38c575b7c54b012"
+    }
+  ]
+}

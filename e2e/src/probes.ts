@@ -8,6 +8,9 @@ export type ProbeContext = {
   manifest: Record<string, any>;
   fixtureUrl: (name: string) => string;
   resultsDir: string;
+  /** Real-hostname URLs served offline by the web-snapshot mitmproxy addon (empty when the
+   * entry has no snapshot). See src/snapshots.ts. */
+  snapshotUrls: string[];
 };
 export type ProbeResult = { name: string; status: "ran" | "skipped" | "failed"; note?: string };
 
@@ -48,12 +51,28 @@ export async function installProbe(_p: ProbeContext): Promise<ProbeResult> {
 export async function contentProbe(p: ProbeContext): Promise<ProbeResult> {
   const hasContent = Array.isArray(p.manifest.content_scripts) && p.manifest.content_scripts.length > 0;
   if (!hasContent) return { name: "content", status: "skipped", note: "no content_scripts" };
-  if (!contentScriptsCoverUrl(p.manifest, p.fixtureUrl("basic.html"))) {
+  const fixtureCovered = contentScriptsCoverUrl(p.manifest, p.fixtureUrl("basic.html"));
+  const coveredSnapshotUrls = p.snapshotUrls.filter((url) => contentScriptsCoverUrl(p.manifest, url));
+  if (!fixtureCovered && coveredSnapshotUrls.length === 0) {
     const patterns = p.manifest.content_scripts.flatMap((cs: any) => cs.matches ?? []);
-    return { name: "content", status: "skipped", note: `content_scripts matches (${patterns.join(", ")}) don't cover the fixture origin` };
+    return {
+      name: "content",
+      status: "skipped",
+      note: `content_scripts matches (${patterns.join(", ")}) don't cover the fixture origin or any snapshot url`,
+    };
   }
-  for (const fixture of ["basic.html", "form.html"]) {
-    const url = p.fixtureUrl(fixture);
+  if (fixtureCovered) {
+    for (const fixture of ["basic.html", "form.html"]) {
+      const url = p.fixtureUrl(fixture);
+      await p.chrome.open(url);
+      await p.firefox.open(url);
+      await settle(2500);
+    }
+  }
+  // Web snapshots: real-hostname pages served offline by mitmproxy, so content scripts that
+  // only match a real host (e.g. OneNote's onenote.officeapps.live.com) get coverage the
+  // synthetic fixture server can never provide.
+  for (const url of coveredSnapshotUrls) {
     await p.chrome.open(url);
     await p.firefox.open(url);
     await settle(2500);
@@ -86,13 +105,18 @@ export async function pingProbe(p: ProbeContext): Promise<ProbeResult> {
   // The ping relay only works because the shim gets injected into whatever content script
   // the extension itself declares (instrumentExtension unshifts it into each
   // content_scripts[].js array) -- there's no universal listener. So this probe can only
-  // ever succeed if content_scripts already covers the fixture origin; check that first and
-  // skip before opening any pages, instead of opening pages, waiting on a relay that can
-  // never respond, and only then reporting skipped.
-  if (!contentScriptsCoverUrl(p.manifest, p.fixtureUrl("basic.html"))) {
-    return { name: "ping", status: "skipped", note: "no content script on fixture page" };
+  // ever succeed if content_scripts already covers the fixture origin or a snapshot url;
+  // check that first and skip before opening any pages, instead of opening pages, waiting on
+  // a relay that can never respond, and only then reporting skipped.
+  // Prefer a snapshot URL content scripts actually cover (real hostname, e.g. OneNote) over
+  // the synthetic fixture, so the relay can round-trip for extensions whose content_scripts
+  // never match the fixture's 127.0.0.1 origin at all.
+  const coveredSnapshotUrl = p.snapshotUrls.find((u) => contentScriptsCoverUrl(p.manifest, u));
+  const fixtureUrl = p.fixtureUrl("basic.html");
+  const url = coveredSnapshotUrl ?? (contentScriptsCoverUrl(p.manifest, fixtureUrl) ? fixtureUrl : null);
+  if (!url) {
+    return { name: "ping", status: "skipped", note: "no content script on fixture page or any snapshot url" };
   }
-  const url = p.fixtureUrl("basic.html");
   await p.chrome.open(url);
   await p.firefox.open(url);
   await settle(500);

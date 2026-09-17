@@ -11,9 +11,11 @@ import { launchChrome } from "./chromeDriver.js";
 import { launchFirefox } from "./firefoxDriver.js";
 import { normalizeTrace, diffTraces, countMatchedEvents, assessVacuity } from "./diff.js";
 import { ALL_PROBES, type ProbeResult } from "./probes.js";
+import { hasSnapshot, startSnapshotServer, snapshotUrls } from "./snapshots.js";
 
 const TELEMETRY_PORT = 41999;
 const FIXTURE_PORT = 41990;
+const SNAPSHOT_PORT = 41980;
 // The shim flushes its event buffer on a 250ms timer; without a settle window after the last
 // probe, closing the browsers immediately can truncate the tail of the trace.
 const TRACE_SETTLE_MS = 600;
@@ -61,13 +63,17 @@ async function runOne(entry: CorpusEntry): Promise<ExtReport> {
 
   const telemetry = await startTelemetry(TELEMETRY_PORT);
   const fixtures = await startFixtures(FIXTURE_PORT);
+  const snap = hasSnapshot(entry.id) ? await startSnapshotServer(entry.id, SNAPSHOT_PORT) : null;
   const probes: ProbeResult[] = [];
   let chrome, firefox;
   try {
-    chrome = await launchChrome(chromeDir);
-    firefox = await launchFirefox(xpi, geckoId);
+    chrome = await launchChrome(chromeDir, { proxyServer: snap?.proxyServer });
+    firefox = await launchFirefox(xpi, geckoId, { proxyServer: snap?.proxyServer });
+    const urls = snap ? snapshotUrls(entry.id) : [];
     for (const probe of ALL_PROBES) {
-      probes.push(await probe({ chrome, firefox, telemetry, manifest, fixtureUrl: fixtures.url, resultsDir: work }));
+      probes.push(
+        await probe({ chrome, firefox, telemetry, manifest, fixtureUrl: fixtures.url, resultsDir: work, snapshotUrls: urls }),
+      );
     }
   } finally {
     // Let the shim's timer-based flush land before the browsers (and their processes) go away.
@@ -75,6 +81,7 @@ async function runOne(entry: CorpusEntry): Promise<ExtReport> {
     await chrome?.close().catch(() => {});
     await firefox?.close().catch(() => {});
     await fixtures.close();
+    await snap?.close();
   }
 
   const a = normalizeTrace(telemetry.getEvents("chrome-orig"));
