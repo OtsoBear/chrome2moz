@@ -21,6 +21,11 @@ const KEYMAP: Record<string, string> = {
 export async function launchFirefox(xpiPath: string, geckoId: string): Promise<BrowserSession> {
   const opts = new firefox.Options();
   opts.addArguments("-headless");
+  // Clipboard readback observable: the testing pref bypasses the transient-user-activation
+  // requirement so headless writeText/readText resolve (matching Chromium's granted state).
+  opts.setPreference("dom.events.asyncClipboard.readText", true);
+  opts.setPreference("dom.events.asyncClipboard.clipboardItem", true);
+  opts.setPreference("dom.events.testing.asyncClipboard", true);
   // geckodriver >=0.37 (Firefox 153+) refuses WebDriver navigation to internal
   // schemes (moz-extension:, about:, chrome:) unless the server is started with
   // --allow-system-access; without it `driver.get("moz-extension://...")` throws
