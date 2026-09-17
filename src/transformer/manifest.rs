@@ -100,6 +100,7 @@ impl ManifestTransformer {
             scripts.push("shims/user-scripts-compat.js".to_string());
             scripts.push("shims/tabs-windows-compat.js".to_string());
             scripts.push("shims/runtime-compat.js".to_string());
+            scripts.push("shims/runtime-onmessage-compat.js".to_string());
             scripts.push("shims/downloads-compat.js".to_string());
             scripts.push("shims/privacy-stub.js".to_string());
             scripts.push("shims/notifications-compat.js".to_string());
