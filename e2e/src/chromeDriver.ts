@@ -19,7 +19,7 @@ function mapChord(chord: string): string {
     .join("+");
 }
 
-export async function launchChrome(extDir: string): Promise<BrowserSession> {
+export async function launchChrome(extDir: string, opts: { proxyServer?: string } = {}): Promise<BrowserSession> {
   const ctx: BrowserContext = await chromium.launchPersistentContext(
     mkdtempSync(join(tmpdir(), "c2m-chrome-")),
     {
@@ -34,6 +34,7 @@ export async function launchChrome(extDir: string): Promise<BrowserSession> {
         `--load-extension=${extDir}`,
         "--no-first-run",
       ],
+      ...(opts.proxyServer ? { proxy: { server: opts.proxyServer }, ignoreHTTPSErrors: true } : {}),
     },
   );
   let extensionId: string;

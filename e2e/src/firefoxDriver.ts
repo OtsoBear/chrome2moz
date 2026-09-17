@@ -18,9 +18,27 @@ const KEYMAP: Record<string, string> = {
   Ctrl: Key.CONTROL, MacCtrl: Key.CONTROL, Command: Key.META, Alt: Key.ALT, Shift: Key.SHIFT,
 };
 
-export async function launchFirefox(xpiPath: string, geckoId: string): Promise<BrowserSession> {
+export async function launchFirefox(
+  xpiPath: string,
+  geckoId: string,
+  driverOpts: { proxyServer?: string } = {},
+): Promise<BrowserSession> {
   const opts = new firefox.Options();
   opts.addArguments("-headless");
+  if (driverOpts.proxyServer) {
+    // Proxy is set via prefs, not a WebDriver capability, matching Spike 3
+    // (spikes/RESULTS.md "## Web snapshots / mitmproxy"). Parse host:port from
+    // "http://host:port" (the shape startSnapshotServer returns).
+    const { hostname, port } = new URL(driverOpts.proxyServer);
+    opts.setPreference("network.proxy.type", 1);
+    opts.setPreference("network.proxy.http", hostname);
+    opts.setPreference("network.proxy.http_port", Number(port));
+    opts.setPreference("network.proxy.ssl", hostname);
+    opts.setPreference("network.proxy.ssl_port", Number(port));
+    opts.setPreference("network.proxy.allow_hijacking_localhost", true);
+    opts.setPreference("network.proxy.no_proxies_on", "");
+    opts.setAcceptInsecureCerts(true);
+  }
   // geckodriver >=0.37 (Firefox 153+) refuses WebDriver navigation to internal
   // schemes (moz-extension:, about:, chrome:) unless the server is started with
   // --allow-system-access; without it `driver.get("moz-extension://...")` throws
