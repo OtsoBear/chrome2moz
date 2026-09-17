@@ -78,6 +78,16 @@
         "storage.local.set#hello async offscreen": "See _issue_8_regression_control -- Chrome side: the real parsed text gets stored because sendResponse's value was honored.",
         "storage.local.set#UNDEFINED_RESPONSE": "See _issue_8_regression_control -- Firefox side: the extension's own UNDEFINED_RESPONSE marker object (not a native browser value; chosen so the divergence is legible in the trace instead of silently vanishing as a dropped-undefined storage key) gets stored because viaOffscreen(\"parse-async\") resolved to undefined instead of the real parsed text."
       }
+    },
+    {
+      "id": "clipboard-gate",
+      "name": "C2M Clipboard Gate",
+      "source": "local:testdata/clipboard-extension",
+      "allowed_diffs": [],
+      "quarantined": false,
+      "_notes": {
+        "_purpose": "Exercises the clipboard readback observable (issue #4.3): a content script writes a fixed string and reads it back. The spy shim records clipboard.writeText and clipboard.readText:resolve on both browsers; with clipboard permissions pre-granted by the drivers, both resolve identically, so the content-context traces MATCH with no allowance. A regression that changed the clipboard value (or dropped the read-back) would diverge and fail here."
+      }
     }
   ]
 }
