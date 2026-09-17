@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "C2M Clipboard Gate",
+  "version": "1.0",
+  "background": { "service_worker": "background.js" },
+  "permissions": ["clipboardRead", "clipboardWrite"],
+  "content_scripts": [
+    { "matches": ["http://127.0.0.1/*"], "js": ["content.js"], "run_at": "document_idle" }
+  ]
+}

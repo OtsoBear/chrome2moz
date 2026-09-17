@@ -171,6 +171,43 @@
     };
   }
 
+  // Clipboard observable: wrap navigator.clipboard.writeText/readText the same way as fetch
+  // (direct reassignment, record then delegate). readText:resolve carries the read-back value,
+  // which is the clipboard readback observable. Transparency: only wraps methods that exist.
+  try {
+    const clip = g.navigator && g.navigator.clipboard;
+    if (clip) {
+      if (typeof clip.writeText === "function") {
+        const origWrite = clip.writeText.bind(clip);
+        try {
+          clip.writeText = function (text) {
+            try { record("clipboard.writeText", [norm(text)]); } catch {}
+            const r = origWrite(text);
+            if (r && typeof r.then === "function") r.then(
+              () => { try { record("clipboard.writeText:resolve", []); } catch {} },
+              (e) => { try { record("clipboard.writeText:reject", [String(e)]); } catch {} },
+            );
+            return r;
+          };
+        } catch {}
+      }
+      if (typeof clip.readText === "function") {
+        const origRead = clip.readText.bind(clip);
+        try {
+          clip.readText = function () {
+            try { record("clipboard.readText", []); } catch {}
+            const r = origRead();
+            if (r && typeof r.then === "function") r.then(
+              (v) => { try { record("clipboard.readText:resolve", [norm(v)]); } catch {} },
+              (e) => { try { record("clipboard.readText:reject", [String(e)]); } catch {} },
+            );
+            return r;
+          };
+        } catch {}
+      }
+    }
+  } catch {}
+
   try {
     g.addEventListener?.("error", (e) => { try { record("runtime.error", [norm(String(e && e.message))]); } catch {} });
     g.addEventListener?.("unhandledrejection", (e) => { try { record("runtime.error", [norm(String(e && e.reason))]); } catch {} });
