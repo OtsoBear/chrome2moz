@@ -21,6 +21,11 @@ const KEYMAP: Record<string, string> = {
 export async function launchFirefox(xpiPath: string, geckoId: string): Promise<BrowserSession> {
   const opts = new firefox.Options();
   opts.addArguments("-headless");
+  // Clipboard readback observable: the testing pref bypasses the transient-user-activation
+  // requirement so headless writeText/readText resolve (matching Chromium's granted state).
+  opts.setPreference("dom.events.asyncClipboard.readText", true);
+  opts.setPreference("dom.events.asyncClipboard.clipboardItem", true);
+  opts.setPreference("dom.events.testing.asyncClipboard", true);
   // Deliberately NOT lowering extensions.background.idle.timeout here: the spy shim's /cmd
   // polling is plain fetch, which Firefox does not count as extension activity, so a short
   // idle timeout kills the event page between ordinary probes and the ping relay goes silent

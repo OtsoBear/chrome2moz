@@ -39,6 +39,9 @@ export async function launchChrome(extDir: string): Promise<BrowserSession> {
       ],
     },
   );
+  // Clipboard readback observable: headless writeText/readText need explicit permission,
+  // otherwise they reject with NotAllowedError and desync from Firefox.
+  await ctx.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
   let extensionId: string;
   let page: Page;
   try {
