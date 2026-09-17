@@ -101,3 +101,48 @@ firefox cmd-fired hits after Meta+Shift+9: []
 ### Decision
 
 Both browsers: **did not fire**, for the same underlying reason (synthetic input from both Playwright/CDP and Selenium/WebDriver bypasses the browser's native global-accelerator table that `chrome.commands`/`browser.commands` shortcuts are matched against). This is a clean, well-understood negative result, not a chord-mismatch or timing issue — confirmed via DOM-level keydown diagnostics on both browsers showing correct key delivery. Per the brief's fallback: the commands probe ships as `skipped: dispatch-unsupported` in later tasks' reports; later tasks should treat it as optional and not block on it.
+
+## Kill/Wake
+
+Ran `E2E_INTEGRATION=1 pnpm exec tsx spikes/spike-killwake.ts` from `e2e/` with `playwright@1.62.0` (bundled Chromium 151.0.7922.34, `--headless=new`) and `selenium-webdriver@4.46.0` against **Firefox** at `/Applications/Firefox.app` (`-headless`, Selenium Manager `geckodriver`), on macOS. Ran three consecutive times for reproducibility; identical qualitative result every time.
+
+**Verdict: both browsers confirmed killed + rebooted under headless automation.** Chromium via CDP `ServiceWorker.stopAllWorkers` (as given in the plan). Firefox via the `extensions.background.idle.timeout` pref set to `1000` at launch plus an idle wait past that window — no explicit "kill" call exists for Firefox event pages, but the idle-timeout-driven suspend is real, observable, and reboots correctly. **No `kill-unsupported` fallback is needed for Firefox.**
+
+### Instrumentation (why the result is trustworthy, not noise)
+
+A shared throwaway `background.js` (prototyping the Task 4 gate design) does two things on every (re)boot:
+
+```javascript
+const bootMark = Date.now() + ":" + Math.random(); // computed ONCE per top-level script run
+async function recordBoot(reason) {
+  const cur = await chrome.storage.local.get(["boots"]);
+  const boots = (cur.boots || 0) + 1;
+  await chrome.storage.local.set({ boots, bootMark, lastWake: reason });
+}
+recordBoot("startup");
+chrome.tabs.onUpdated.addListener((_tabId, info) => {
+  if (info.status === "complete") recordBoot("tabs.onUpdated");
+});
+```
+
+`bootMark` is computed once, synchronously, at top level — it can only change if the whole script re-executes in a new global scope (a genuine restart), unlike `boots`, which increments on every call regardless of restart. **First attempt at this instrumentation had a bug**: `bootMark` was regenerated inside `recordBoot()` on every call, so it could not distinguish "a live worker handled one more event" from "the worker restarted." That produced a misleading first raw run (committed history of this file does not include it; caught before recording a verdict). Fixed by hoisting the `Date.now() + ":" + Math.random()` computation above `recordBoot`, matching the design already specified for the Task 4 gate's `background.js`.
+
+### Chromium
+
+- `ctx.serviceWorkers()[0]` gives the initial worker; state read via `sw.evaluate(() => chrome.storage.local.get(...))` — `boots: 1` after the 3s settle (the implicit initial `about:blank` tab does not itself trigger `tabs.onUpdated` for this extension; confirmed empirically, `boots` stayed at 1 through the settle wait).
+- Kill: `ServiceWorker.stopAllWorkers` was sent over a CDP session attached to the existing `about:blank` page (`ctx.newCDPSession(target)`), not a browser-level session — `ServiceWorker.*` is a page/target-scoped CDP domain; `Browser.newBrowserCDPSession()` (tried first, to avoid any page-touching confound) throws `'ServiceWorker.enable' wasn't found` because that session type doesn't expose the domain. The already-open `about:blank` tab was confirmed not to introduce its own `tabs.onUpdated`, so using it as the CDP target is confound-free.
+- `ctx.serviceWorkers()` **never dropped the old worker handle** in the 3s poll after `stopAllWorkers` (`old worker handle cleared: no`), and the object returned after the wake trigger was reference-equal to the original (`new Playwright worker object identity: false`). Playwright appears to key its `ServiceWorker` wrapper by scope/URL and rebind it across a respawn rather than surfacing a new object — this is a Playwright bookkeeping quirk, not evidence the kill failed, and is not treated as the deciding signal.
+- The deciding signal is `bootMark`, read from inside the extension's own runtime: after the wake trigger (one `ctx.newPage()`), `bootMark` changed on every one of three runs, and `boots` advanced by exactly 2 (`recordBoot("startup")` from the fresh top-level run, immediately followed by `recordBoot("tabs.onUpdated")` delivering the event that woke it — the textbook sequence for a genuinely dead worker receiving a pending event, versus +1 for a still-alive worker just handling one more event). `lastWake` read back as `"tabs.onUpdated"` every time.
+- **Confirmed**: `ServiceWorker.stopAllWorkers` genuinely terminates the extension service worker under `--headless=new`, and it reboots (fresh top-level execution) on the next qualifying event, three runs in a row, no flakiness observed.
+
+### Firefox
+
+- Same shared `background.js`/`content.js` design, converted to `background.scripts` (event page, matching the existing `firefoxDriver.ts`/spike-firefox conversion shape) with `browser_specific_settings.gecko.id` set; `extensions.background.idle.timeout` set to `1000` via `firefox.Options().setPreference(...)` at launch.
+- No WebDriver command exists to force-terminate a Firefox event page, and there is no equivalent to Playwright's `serviceWorkers()` list to directly observe live/dead state — so the signal has to come the same way the real probe will observe it: the content script reads `chrome.storage.local` on each fixture page load and reports it out via `fetch()` to the spike's local HTTP server (the same telemetry shape the real shim/gate already uses).
+- Timeline per run: install, settle 2s, navigate to the fixture page (`boots: 3` after startup + two implicit `tabs.onUpdated` from the browser's own initial-tab lifecycle — unlike Chromium, Firefox's initial window's `about:blank` load plus the subsequent navigation both counted), settle 2s (report captured), **idle 4s** (past the 1000ms pref, no navigation, no extension activity), then wake: open one new tab (`switchTo().newWindow("tab")`, itself a `tabs.onUpdated`) and navigate it to the fixture page (a second `tabs.onUpdated`), settle 2s, report captured again.
+- If the event page had stayed alive through the idle window, the wake trigger's two `tabs.onUpdated` calls would add exactly 2 to `boots` and leave `bootMark` unchanged. Observed on all three runs: `boots` advanced by exactly **3** (one `recordBoot("startup")` from a fresh top-level run plus the two `tabs.onUpdated` deliveries) and `bootMark` **changed** every time.
+- **Confirmed**: Firefox's converted event-page background does idle-terminate past `extensions.background.idle.timeout` under headless Selenium/WebDriver, and does reboot (fresh top-level execution) on the next `tabs.onUpdated`-triggering event, three runs in a row, no flakiness observed.
+
+### Decision
+
+Both sides confirmed kill + reboot, observed via `bootMark` (a signal that can only change on a genuine top-level script re-execution, immune to the "listener fired again on a still-live worker" false positive). Task 2's Firefox `killBackground()` should report `{ killed: true, mechanism: "idle-timeout" }` after sleeping past the idle-timeout pref (no fallback `kill-unsupported` needed). Task 4's `killwake-gate` corpus entry should use `allowed_diffs: []` with no `_firefox_kill_caveat` allowance — both sides are expected to show `boots` going `1 -> 2`-equivalent identically once wired through the real `killWakeProbe` (which drives one wake tab per side, matching this spike's confirmed single-trigger behavior, not the two-navigation wake sequence used here to make the Firefox implicit-event accounting airtight).
