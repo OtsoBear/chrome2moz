@@ -34,6 +34,13 @@ jobs:
         with:
           firefox-version: latest
 
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install mitmproxy (web snapshot serve-addon)
+        run: |
+          uv tool install mitmproxy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Install harness deps
         working-directory: e2e
         run: |
@@ -53,6 +60,9 @@ jobs:
       - name: Unit tests
         working-directory: e2e
         run: pnpm test
+
+      - name: Verify mitmdump on PATH
+        run: mitmdump --version
 
       - name: Differential e2e
         working-directory: e2e

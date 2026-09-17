@@ -5,7 +5,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "tsx src/run.ts"
+    "e2e": "tsx src/run.ts",
+    "snapshot": "tsx src/snapshotBuild.ts"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",

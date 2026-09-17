@@ -146,3 +146,50 @@ chrome.tabs.onUpdated.addListener((_tabId, info) => {
 ### Decision
 
 Both sides confirmed kill + reboot, observed via `bootMark` (a signal that can only change on a genuine top-level script re-execution, immune to the "listener fired again on a still-live worker" false positive). Task 2's Firefox `killBackground()` should report `{ killed: true, mechanism: "idle-timeout" }` after sleeping past the idle-timeout pref (no fallback `kill-unsupported` needed). Task 4's `killwake-gate` corpus entry should use `allowed_diffs: []` with no `_firefox_kill_caveat` allowance — both sides are expected to show `boots` going `1 -> 2`-equivalent identically once wired through the real `killWakeProbe` (which drives one wake tab per side, matching this spike's confirmed single-trigger behavior, not the two-navigation wake sequence used here to make the Firefox implicit-event accounting airtight).
+## Web snapshots / mitmproxy
+
+Ran `E2E_INTEGRATION=1 pnpm exec tsx spikes/spike-snapshot.ts` from `e2e/` with `mitmproxy 12.2.3` (installed via `uv tool install mitmproxy`, Python 3.12.11), `playwright@1.54.0` (Chromium) and `selenium-webdriver@4.34.0` + Firefox (Selenium Manager), on macOS.
+
+**Verdict: PASS on both browsers, first run. Both Chromium and Firefox load `https://example.test/` served entirely by the mitmproxy addon (no live network), and the extension content script (`testdata/hello-extension`, `matches: ["http://127.0.0.1/*", "https://example.test/*"]`) injects on the served page in both. Spike 3 is fully green; the ~60-minute fallback in Global Constraints was not needed.**
+
+Output:
+
+```
+=== chromium ===
+{ title: 'snapshot spike', injected: true }
+=== firefox ===
+{ title: 'snapshot spike', injected: true }
+```
+
+### Working mitmdump invocation
+
+```
+mitmdump -q -p <port> -s snapshots/serve_addon.py --set upstream_cert=false --set connection_strategy=lazy
+```
+
+with `C2M_SNAPSHOT_ID=<entry-id>` set in the environment (selects which entry of `snapshots/index.json` the addon serves).
+
+- `-p <port>`: listen port (`--listen-port` long form). `-q`: quiet (suppress the flow log to stdout).
+- `-s snapshots/serve_addon.py`: load the serve-addon (`--scripts` long form), relative to the mitmdump working directory (spawned with `cwd: e2e/`).
+- `--set upstream_cert=false`: **required**. mitmproxy's default `connection_strategy=eager` plus `upstream_cert=true` makes it eagerly open a real TCP/TLS connection to the upstream host at CONNECT time, to clone the real server's certificate fields for the MITM cert it presents to the client. For a fixture-only hostname like `example.test` that resolves to nothing routable, this eager upstream connection either hangs or fails, and the client-side TLS handshake with mitmproxy never completes (`curl` observed this as `CURLE_RECV_ERROR`, exit 56, with the addon's `request` hook never even being reached). Setting `upstream_cert=false` makes mitmproxy generate its self-signed leaf cert without contacting the upstream host at all.
+- `--set connection_strategy=lazy`: belt-and-suspenders with the above so mitmproxy never opens the upstream connection unless a flow is actually let through un-intercepted (which the addon never does for a snapshotted host, since `request()` always sets `flow.response` before mitmproxy would otherwise connect upstream).
+- Confirmed directly with `curl --insecure -x http://127.0.0.1:<port> https://example.test/` before writing the TS driver: without the two `--set` flags, the request hung/failed at the TLS layer; with them, it returned the stored HTML (`200`) immediately, and an unlisted host (`https://other.test/`) returned the addon's `204` refusal, proving no live network occurs for either the matched or unmatched case.
+
+### Proxy config per browser
+
+- **Chromium (Playwright):** `chromium.launchPersistentContext(..., { proxy: { server: "http://127.0.0.1:<port>" }, ignoreHTTPSErrors: true, args: ["--headless=new", "--ignore-certificate-errors", ...] })`. `ignoreHTTPSErrors` alone was sufficient for Playwright's own navigation/assertion APIs to treat the mitmproxy leaf cert as trusted; `--ignore-certificate-errors` was added as a Chromium-native belt-and-suspenders flag but was not isolated as strictly required (not worth the extra spike time to bisect, given the run passed).
+- **Firefox (Selenium):** proxy set via prefs, not capabilities: `network.proxy.type=1`, `network.proxy.http`/`network.proxy.ssl="127.0.0.1"`, `network.proxy.http_port`/`network.proxy.ssl_port=<port>`, `network.proxy.allow_hijacking_localhost=true` (permits proxying to a loopback destination, which Firefox otherwise special-cases), `network.proxy.no_proxies_on=""` (clears the default localhost bypass list so `127.0.0.1` doesn't shortcut past the proxy). TLS acceptance via `firefox.Options#setAcceptInsecureCerts(true)`, which maps to the WebDriver `acceptInsecureCerts` capability.
+
+### TLS approach
+
+Accept-insecure only, both browsers, **no NSS import of mitmproxy's CA anywhere**: Playwright's `ignoreHTTPSErrors: true` and Selenium/geckodriver's `acceptInsecureCerts: true` (via `setAcceptInsecureCerts`) are sufficient for both to complete the TLS handshake against mitmproxy's self-signed leaf cert and load the page. This matches the plan's TLS approach exactly; mitmproxy's own CA cert (normally at `~/.mitmproxy/mitmproxy-ca-cert.pem`) was never referenced or imported into either browser's trust store.
+
+### Content-script injection confirmation
+
+Used a DOM marker rather than a telemetry fetch, consistent with `testdata/hello-extension/content.js`'s existing pattern (`document.documentElement.dataset.c2mHello = "1"`) and with how `probes.ts`/`contentProbe` already treats fixture pages: a fetch-based telemetry hit would itself be intercepted by the same mitmproxy instance (all browser traffic is proxied, not just the snapshot host), adding complexity with no extra proof value. `content_scripts.matches` on `testdata/hello-extension/manifest.json` was extended (additively, not replacing) to `["http://127.0.0.1/*", "https://example.test/*"]` so existing spikes/tests that rely on the `127.0.0.1` fixture match are unaffected. Confirmed via `page.evaluate(...)` (Chromium) and `driver.executeScript(...)` (Firefox) that `document.documentElement.dataset.c2mHello === "1"` on the mitmproxy-served `https://example.test/` page, in both browsers.
+
+### Notes for later tasks
+
+- Both browsers were launched headless (`--headless=new` for Chromium per `chromeDriver.ts`'s existing pattern; `-headless` for Firefox), consistent with Global Constraints.
+- The serve-addon refuses any host not present in the selected snapshot entry with an empty `204`, so subresource requests (images, scripts, etc.) to unknown hosts don't hang the page load; this was exercised implicitly by the browsers' own subresource probing (favicon etc.) during the run without incident.
+- `startSnapshotServer` (Task 3) should wait for the mitmdump listen port to be open before returning (a `net.connect` poll loop, as used in the spike) rather than a fixed sleep, since mitmdump's own startup time varies.
