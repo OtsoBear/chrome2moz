@@ -78,6 +78,17 @@
         "storage.local.set#hello async offscreen": "See _issue_8_regression_control -- Chrome side: the real parsed text gets stored because sendResponse's value was honored.",
         "storage.local.set#UNDEFINED_RESPONSE": "See _issue_8_regression_control -- Firefox side: the extension's own UNDEFINED_RESPONSE marker object (not a native browser value; chosen so the divergence is legible in the trace instead of silently vanishing as a dropped-undefined storage key) gets stored because viaOffscreen(\"parse-async\") resolved to undefined instead of the real parsed text."
       }
+    },
+    {
+      "id": "killwake-gate",
+      "name": "C2M KillWake Gate",
+      "source": "local:testdata/killwake-extension",
+      "allowed_diffs": [],
+      "quarantined": false,
+      "_notes": {
+        "_purpose": "Kill/wake probe gate (spec Probes #5). Background counts boots in storage.local; killWakeProbe boots it, kills the background (Chromium CDP ServiceWorker.stopAllWorkers; Firefox idle timeout), then opens a second fixture tab to wake it via tabs.onUpdated. The content script reads storage.local on each page so the boot counter reaches the trace. Both sides killed+rebooted => boots go 1 -> 2 identically and MATCH.",
+        "_firefox_kill_confirmed": "The kill/wake spike (spikes/RESULTS.md, Kill/Wake section) confirmed, three runs in a row, that Firefox's converted event-page background does idle-terminate past extensions.background.idle.timeout under headless Selenium/WebDriver and reboots (fresh top-level execution, observed via a bootMark that can only change on a genuine restart) on the next tabs.onUpdated-triggering event. No kill-unsupported allowance is needed; both sides are expected to reboot and match."
+      }
     }
   ]
 }
