@@ -79,6 +79,30 @@
       "_notes": {
         "_purpose": "Exercises the clipboard readback observable (issue #4.3): a content script writes a fixed string and reads it back. The spy shim records clipboard.writeText and clipboard.readText:resolve on both browsers; with clipboard permissions pre-granted by the drivers, both resolve identically, so the content-context traces MATCH with no allowance. A regression that changed the clipboard value (or dropped the read-back) would diverge and fail here."
       }
+    },
+    {
+      "id": "nffaoalbilbmmfgbnbgppjihopabppdk",
+      "name": "Video Speed Controller",
+      "source": "cws",
+      "allowed_diffs": [],
+      "quarantined": true,
+      "_note": "Corpus trial 17.09.2026, untriaged: content scripts on <all_urls>, storage, commands. Quarantined until first triage; no version pin yet (pin after the first run records it)."
+    },
+    {
+      "id": "ddkjiahejlhfcafbddmgiahcphecmpfh",
+      "name": "uBlock Origin Lite",
+      "source": "cws",
+      "allowed_diffs": [],
+      "quarantined": true,
+      "_note": "Corpus trial 17.09.2026, untriaged: MV3 declarativeNetRequest-heavy, exercises the converter's DNR-to-webRequest shim. Quarantined until first triage; no version pin yet."
+    },
+    {
+      "id": "gebbhagfogifgggkldgodflihgfeippi",
+      "name": "Return YouTube Dislike",
+      "source": "cws",
+      "allowed_diffs": [],
+      "quarantined": true,
+      "_note": "Corpus trial 17.09.2026, untriaged: site-specific content scripts (youtube.com), so it needs a web snapshot to get content coverage; expected to report content:skipped until one is added. Quarantined until first triage; no version pin yet."
     }
   ]
 }
